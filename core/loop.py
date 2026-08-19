@@ -34,10 +34,16 @@ class AgentLoop:
                 self.state.new_messages.append(warning_msg)
                 self.state.strategy = "default"
                 
-            self.events.emit(LLMRequestEvent(messages=self.state.messages))
+            from memory.lifecycle import get_checkpoint
+            cp = get_checkpoint()
+            messages_to_send = self.state.messages.copy()
+            if cp:
+                messages_to_send.append(Message(role="system", content=cp))
+                
+            self.events.emit(LLMRequestEvent(messages=messages_to_send))
             
             response = self.provider.complete(
-                self.state.messages, model=current_model, tools=self.tools.get_tool_schemas()
+                messages_to_send, model=current_model, tools=self.tools.get_tool_schemas()
             )
             new_msg = response.messages[0]
             
@@ -101,7 +107,11 @@ class AgentLoop:
                 self.state.messages.append(limit_msg)
                 self.state.new_messages.append(limit_msg)
                 
-                final_response = self.provider.complete(self.state.messages, model=current_model, tools=[])
+                final_messages_to_send = self.state.messages.copy()
+                if cp:
+                    final_messages_to_send.append(Message(role="system", content=cp))
+                
+                final_response = self.provider.complete(final_messages_to_send, model=current_model, tools=[])
                 final_msg = final_response.messages[0]
                 self.state.messages.append(final_msg)
                 self.state.new_messages.append(final_msg)
