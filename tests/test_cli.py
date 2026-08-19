@@ -87,7 +87,7 @@ def test_cli_interactive_loop(monkeypatch, tmp_path, capsys):
         mock_agent_instance.run.assert_called_once()
 
     captured = capsys.readouterr().out
-    assert "Agent started. Type /quit to exit." in captured
+    assert "Pygent started. Type /quit to exit." in captured
     assert "AI: Hello! How can I help you today?" in captured
 
 
@@ -107,4 +107,4 @@ def test_cli_interactive_loop_eof(monkeypatch, tmp_path, capsys):
         main()
 
     captured = capsys.readouterr().out
-    assert "Agent started. Type /quit to exit." in captured
+    assert "Pygent started. Type /quit to exit." in captured

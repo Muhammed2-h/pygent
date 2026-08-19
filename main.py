@@ -50,26 +50,29 @@ def main():
     agent = Agent(provider, tools, config.default_model, config.max_agent_steps)
 
     print("Pygent started. Type /quit to exit.")
-    while True:
-        try:
-            user_in = input("> ")
-        except (EOFError, KeyboardInterrupt):
-            break
+    try:
+        while True:
+            try:
+                user_in = input("> ")
+            except (EOFError, KeyboardInterrupt):
+                break
 
-        if user_in.strip() == "/quit":
-            break
+            if user_in.strip() == "/quit":
+                break
 
-        context = memory_svc.get_context_for(user_in)
-        sys_prompt = "You are a helpful AI."
-        if context:
-            sys_prompt += "\n" + context
+            context = memory_svc.get_context_for(user_in)
+            sys_prompt = "You are a helpful AI."
+            if context:
+                sys_prompt += "\n" + context
 
-        messages = agent.run(sys_prompt, user_in)
-        for msg in messages:
-            if msg.role == "assistant" and msg.content:
-                print(f"AI: {msg.content}")
+            messages = agent.run(sys_prompt, user_in)
+            for msg in messages:
+                if msg.role == "assistant" and msg.content:
+                    print(f"AI: {msg.content}")
 
-        memory_svc.add(f"User observation: {user_in}")
+            memory_svc.add(f"User observation: {user_in}")
+    finally:
+        memory_store.close()
 
 
 if __name__ == "__main__":
