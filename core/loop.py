@@ -22,8 +22,17 @@ class AgentLoop:
         while not self.state.is_finished():
             self.events.emit(TurnStartEvent(turn=self.state.turns))
             
-            # strategy switching fallback could be implemented here
             current_model = self.model
+            
+            # strategy switching fallback
+            if self.state.strategy == "fallback":
+                warning_msg = Message(
+                    role="system",
+                    content="You are repeating the exact same tool calls or getting the exact same errors. Please rethink your strategy."
+                )
+                self.state.messages.append(warning_msg)
+                self.state.new_messages.append(warning_msg)
+                self.state.strategy = "default"
                 
             self.events.emit(LLMRequestEvent(messages=self.state.messages))
             
@@ -46,6 +55,7 @@ class AgentLoop:
                 
             self.state.last_tool_calls = current_tool_calls
             current_errors = []
+            executed_tool_calls = []
 
             for tc in new_msg.tool_calls:
                 if self.state.tool_calls_count >= self.state.max_tool_calls:
@@ -67,6 +77,10 @@ class AgentLoop:
                 tool_msg = Message(role="tool", content=result, tool_call_id=tc.id)
                 self.state.messages.append(tool_msg)
                 self.state.new_messages.append(tool_msg)
+                executed_tool_calls.append(tc)
+
+            if len(executed_tool_calls) < len(new_msg.tool_calls):
+                new_msg.tool_calls = executed_tool_calls
 
             if self._is_same_error(current_errors, self.state.last_errors) and current_errors:
                 self.state.strategy = "fallback"
@@ -74,8 +88,16 @@ class AgentLoop:
             self.state.last_errors = current_errors
 
             # check limit after step
-            if self.state.turns == self.state.max_turns - 1 or self.state.is_finished():
-                limit_msg = Message(role="system", content="Max steps reached. Please summarize the final result without calling any more tools.")
+            limit_reason = None
+            if self.state.turns >= self.state.max_turns - 1:
+                limit_reason = "Max steps reached."
+            elif self.state.tool_calls_count >= self.state.max_tool_calls:
+                limit_reason = "Max tool calls reached."
+            elif self.state.get_wall_time() >= self.state.max_wall_time:
+                limit_reason = "Max wall time reached."
+
+            if limit_reason:
+                limit_msg = Message(role="system", content=f"{limit_reason} Please summarize the final result without calling any more tools.")
                 self.state.messages.append(limit_msg)
                 self.state.new_messages.append(limit_msg)
                 

@@ -111,10 +111,12 @@ def test_agent_run_respects_max_steps():
     # max_steps is 3
     # Step 1: assistant tool call + tool result (2 messages added)
     # Step 2: assistant tool call + tool result (2 messages added)
-    # Step 3: assistant tool call + tool result + max step system msg + final response (4 messages added)
-    # Initial: 0 new_messages (system, user are stored in self.messages but not returned)
-    # Total new_messages: 2 + 2 + 4 = 8
-    assert len(result) == 8
+    # At end of Step 2, same_action triggers strategy switch
+    # Step 3: strategy warning (1 message added) + assistant tool call + tool result + max step msg + final response (4 messages added)
+    # Total new_messages: 2 + 2 + 1 + 4 = 9
+    assert len(result) == 9
+    assert result[4].role == "system"
+    assert "rethink your strategy" in result[4].content
     assert provider.call_count == 4
 
 
