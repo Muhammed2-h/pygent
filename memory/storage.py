@@ -1,14 +1,19 @@
 import sqlite3
 import datetime
 import pathlib
-import os
+import tempfile
 
 class MemoryStore:
     def __init__(self, db_path: str = "memory.db"):
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self.db_path = pathlib.Path(db_path)
-        self.skills_dir = self.db_path.parent / "skills"
+        if db_path == ":memory:":
+            self._temp_dir = tempfile.TemporaryDirectory()
+            self.skills_dir = pathlib.Path(self._temp_dir.name) / "skills"
+        else:
+            self._temp_dir = None
+            self.skills_dir = self.db_path.parent / "skills"
         self._init_db()
 
     def _init_db(self):
@@ -33,7 +38,6 @@ class MemoryStore:
                     name TEXT UNIQUE NOT NULL,
                     description TEXT NOT NULL,
                     trigger TEXT,
-                    procedure TEXT NOT NULL,
                     prerequisites TEXT,
                     verification TEXT,
                     confidence REAL DEFAULT 0.5,
@@ -82,25 +86,24 @@ class MemoryStore:
                 CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(
                     name,
                     description,
-                    procedure,
                     content='skills',
                     content_rowid='id'
                 )
             """)
             self.conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS skills_fts_insert AFTER INSERT ON skills BEGIN
-                    INSERT INTO skills_fts(rowid, name, description, procedure) VALUES (new.id, new.name, new.description, new.procedure);
+                    INSERT INTO skills_fts(rowid, name, description) VALUES (new.id, new.name, new.description);
                 END
             """)
             self.conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS skills_fts_update AFTER UPDATE ON skills BEGIN
-                    INSERT INTO skills_fts(skills_fts, rowid, name, description, procedure) VALUES('delete', old.id, old.name, old.description, old.procedure);
-                    INSERT INTO skills_fts(rowid, name, description, procedure) VALUES (new.id, new.name, new.description, new.procedure);
+                    INSERT INTO skills_fts(skills_fts, rowid, name, description) VALUES('delete', old.id, old.name, old.description);
+                    INSERT INTO skills_fts(rowid, name, description) VALUES (new.id, new.name, new.description);
                 END
             """)
             self.conn.execute("""
                 CREATE TRIGGER IF NOT EXISTS skills_fts_delete AFTER DELETE ON skills BEGIN
-                    INSERT INTO skills_fts(skills_fts, rowid, name, description, procedure) VALUES('delete', old.id, old.name, old.description, old.procedure);
+                    INSERT INTO skills_fts(skills_fts, rowid, name, description) VALUES('delete', old.id, old.name, old.description);
                 END
             """)
 
@@ -146,17 +149,26 @@ class MemoryStore:
                 (state, now, name)
             )
 
+    def _get_safe_skill_path(self, name: str) -> pathlib.Path:
+        skill_path = (self.skills_dir / f"{name}.md").resolve()
+        if not skill_path.is_relative_to(self.skills_dir.resolve()):
+            raise ValueError(f"Invalid skill name: {name}")
+        return skill_path
+
     def _write_skill_markdown(self, name: str, procedure: str):
-        skill_path = self.skills_dir / f"{name}.md"
+        skill_path = self._get_safe_skill_path(name)
         skill_path.parent.mkdir(parents=True, exist_ok=True)
         with open(skill_path, "w", encoding="utf-8") as f:
             f.write(procedure)
 
     def _read_skill_markdown(self, name: str, default_procedure: str) -> str:
-        skill_path = self.skills_dir / f"{name}.md"
-        if skill_path.exists():
-            with open(skill_path, "r", encoding="utf-8") as f:
-                return f.read()
+        try:
+            skill_path = self._get_safe_skill_path(name)
+            if skill_path.exists():
+                with open(skill_path, "r", encoding="utf-8") as f:
+                    return f.read()
+        except ValueError:
+            pass
         return default_procedure
 
     def get_skill(self, name: str) -> dict | None:
@@ -165,7 +177,7 @@ class MemoryStore:
         if not row:
             return None
         result = dict(row)
-        result["procedure"] = self._read_skill_markdown(name, result["procedure"])
+        result["procedure"] = self._read_skill_markdown(name, result.get("procedure", ""))
         return result
 
     def add_skill(
@@ -188,24 +200,48 @@ class MemoryStore:
                 "SELECT id FROM skills WHERE name = ?", (name,)
             ).fetchone()
             if existing:
-                self.conn.execute(
-                    """UPDATE skills
-                       SET description=?, procedure=?, trigger=?,
-                           prerequisites=?, verification=?, confidence=?,
-                           updated_at=?
-                       WHERE name=?""",
-                    (description, procedure, trigger, prerequisites,
-                     verification, confidence, now, name),
-                )
+                try:
+                    self.conn.execute(
+                        """UPDATE skills
+                           SET description=?, trigger=?,
+                               prerequisites=?, verification=?, confidence=?,
+                               updated_at=?
+                           WHERE name=?""",
+                        (description, trigger, prerequisites,
+                         verification, confidence, now, name),
+                    )
+                except sqlite3.OperationalError:
+                    # In case old schema is used with procedure TEXT NOT NULL
+                    self.conn.execute(
+                        """UPDATE skills
+                           SET description=?, procedure=?, trigger=?,
+                               prerequisites=?, verification=?, confidence=?,
+                               updated_at=?
+                           WHERE name=?""",
+                        (description, "", trigger, prerequisites,
+                         verification, confidence, now, name),
+                    )
                 return existing["id"]
-            cursor = self.conn.execute(
-                """INSERT INTO skills
-                   (name, description, trigger, procedure, prerequisites,
-                    verification, confidence, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?)""",
-                (name, description, trigger, procedure, prerequisites,
-                 verification, confidence, now, now),
-            )
+            
+            try:
+                cursor = self.conn.execute(
+                    """INSERT INTO skills
+                       (name, description, trigger, prerequisites,
+                        verification, confidence, created_at, updated_at)
+                       VALUES (?,?,?,?,?,?,?,?)""",
+                    (name, description, trigger, prerequisites,
+                     verification, confidence, now, now),
+                )
+            except sqlite3.OperationalError:
+                # In case old schema is used with procedure TEXT NOT NULL
+                cursor = self.conn.execute(
+                    """INSERT INTO skills
+                       (name, description, trigger, procedure, prerequisites,
+                        verification, confidence, created_at, updated_at)
+                       VALUES (?,?,?,?,?,?,?,?,?)""",
+                    (name, description, trigger, "", prerequisites,
+                     verification, confidence, now, now),
+                )
             return cursor.lastrowid
 
     def search_skills(self, query: str) -> list[dict]:
@@ -219,7 +255,7 @@ class MemoryStore:
         )
         results = [dict(row) for row in cursor.fetchall()]
         for r in results:
-            r["procedure"] = self._read_skill_markdown(r["name"], r["procedure"])
+            r["procedure"] = self._read_skill_markdown(r["name"], r.get("procedure", ""))
         return results
 
     def record_skill_success(self, name: str) -> None:
