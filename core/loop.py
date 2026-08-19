@@ -34,8 +34,7 @@ class AgentLoop:
                 self.state.new_messages.append(warning_msg)
                 self.state.strategy = "default"
                 
-            from memory.lifecycle import get_checkpoint
-            cp = get_checkpoint()
+            cp = self.state.checkpoint.get_checkpoint()
             messages_to_send = self.state.messages.copy()
             if cp:
                 messages_to_send.append(Message(role="system", content=cp))
@@ -108,8 +107,11 @@ class AgentLoop:
                 self.state.new_messages.append(limit_msg)
                 
                 final_messages_to_send = self.state.messages.copy()
-                if cp:
-                    final_messages_to_send.append(Message(role="system", content=cp))
+                
+                # Re-fetch checkpoint in case tools updated it
+                final_cp = self.state.checkpoint.get_checkpoint()
+                if final_cp:
+                    final_messages_to_send.append(Message(role="system", content=final_cp))
                 
                 final_response = self.provider.complete(final_messages_to_send, model=current_model, tools=[])
                 final_msg = final_response.messages[0]

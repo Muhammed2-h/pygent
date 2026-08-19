@@ -18,6 +18,9 @@ class AgentState:
         self.last_errors: List[str] = []
         
         self.strategy: str = "default"
+        
+        from memory.lifecycle import MemoryCheckpoint
+        self.checkpoint = MemoryCheckpoint()
 
     def get_wall_time(self) -> float:
         return time.time() - self.start_time
