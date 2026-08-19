@@ -55,6 +55,17 @@ class MemoryStore:
             except sqlite3.OperationalError:
                 pass
                 
+            # Drop legacy triggers that relied on procedure in skills
+            self.conn.execute("DROP TRIGGER IF EXISTS skills_fts_insert")
+            self.conn.execute("DROP TRIGGER IF EXISTS skills_fts_update")
+            self.conn.execute("DROP TRIGGER IF EXISTS skills_fts_delete")
+
+            # Migrate old schemas by dropping the duplicate procedure column
+            try:
+                self.conn.execute("ALTER TABLE skills DROP COLUMN procedure")
+            except sqlite3.OperationalError:
+                pass
+                
             # FTS for memories
             self.conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
@@ -81,31 +92,25 @@ class MemoryStore:
                 END
             """)
             
-            # FTS for skills
+            # Recreate FTS for skills as a standalone table to keep procedure searchable
+            # We drop it first to ensure we migrate from content='skills' and keep it synced with markdown
+            self.conn.execute("DROP TABLE IF EXISTS skills_fts")
             self.conn.execute("""
-                CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(
+                CREATE VIRTUAL TABLE skills_fts USING fts5(
                     name,
                     description,
-                    content='skills',
-                    content_rowid='id'
+                    procedure
                 )
             """)
-            self.conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS skills_fts_insert AFTER INSERT ON skills BEGIN
-                    INSERT INTO skills_fts(rowid, name, description) VALUES (new.id, new.name, new.description);
-                END
-            """)
-            self.conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS skills_fts_update AFTER UPDATE ON skills BEGIN
-                    INSERT INTO skills_fts(skills_fts, rowid, name, description) VALUES('delete', old.id, old.name, old.description);
-                    INSERT INTO skills_fts(rowid, name, description) VALUES (new.id, new.name, new.description);
-                END
-            """)
-            self.conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS skills_fts_delete AFTER DELETE ON skills BEGIN
-                    INSERT INTO skills_fts(skills_fts, rowid, name, description) VALUES('delete', old.id, old.name, old.description);
-                END
-            """)
+            
+            # Sync existing skills into the standalone FTS index
+            cursor = self.conn.execute("SELECT id, name, description FROM skills")
+            for row in cursor.fetchall():
+                proc = self._read_skill_markdown(row["name"], "")
+                self.conn.execute(
+                    "INSERT INTO skills_fts(rowid, name, description, procedure) VALUES (?, ?, ?, ?)",
+                    (row["id"], row["name"], row["description"], proc)
+                )
 
     def add_memory(self, content: str, mem_type: str = "semantic", title: str = "") -> int:
         now = datetime.datetime.now(datetime.UTC).isoformat()
@@ -200,28 +205,29 @@ class MemoryStore:
                 "SELECT id FROM skills WHERE name = ?", (name,)
             ).fetchone()
             if existing:
+                skill_id = existing["id"]
+                self.conn.execute(
+                    """UPDATE skills
+                       SET description=?, trigger=?,
+                           prerequisites=?, verification=?, confidence=?,
+                           updated_at=?
+                       WHERE name=?""",
+                    (description, trigger, prerequisites,
+                     verification, confidence, now, name),
+                )
+                # Attempt to clear dead procedure data if the column wasn't dropped
                 try:
-                    self.conn.execute(
-                        """UPDATE skills
-                           SET description=?, trigger=?,
-                               prerequisites=?, verification=?, confidence=?,
-                               updated_at=?
-                           WHERE name=?""",
-                        (description, trigger, prerequisites,
-                         verification, confidence, now, name),
-                    )
+                    self.conn.execute("UPDATE skills SET procedure='' WHERE name=?", (name,))
                 except sqlite3.OperationalError:
-                    # In case old schema is used with procedure TEXT NOT NULL
-                    self.conn.execute(
-                        """UPDATE skills
-                           SET description=?, procedure=?, trigger=?,
-                               prerequisites=?, verification=?, confidence=?,
-                               updated_at=?
-                           WHERE name=?""",
-                        (description, "", trigger, prerequisites,
-                         verification, confidence, now, name),
-                    )
-                return existing["id"]
+                    pass
+                
+                # Update standalone FTS
+                self.conn.execute("DELETE FROM skills_fts WHERE rowid = ?", (skill_id,))
+                self.conn.execute(
+                    "INSERT INTO skills_fts(rowid, name, description, procedure) VALUES (?, ?, ?, ?)",
+                    (skill_id, name, description, procedure)
+                )
+                return skill_id
             
             try:
                 cursor = self.conn.execute(
@@ -232,8 +238,8 @@ class MemoryStore:
                     (name, description, trigger, prerequisites,
                      verification, confidence, now, now),
                 )
-            except sqlite3.OperationalError:
-                # In case old schema is used with procedure TEXT NOT NULL
+            except sqlite3.IntegrityError:
+                # Fallback for old SQLite schemas where ALTER TABLE DROP COLUMN procedure failed
                 cursor = self.conn.execute(
                     """INSERT INTO skills
                        (name, description, trigger, procedure, prerequisites,
@@ -242,7 +248,13 @@ class MemoryStore:
                     (name, description, trigger, "", prerequisites,
                      verification, confidence, now, now),
                 )
-            return cursor.lastrowid
+            
+            skill_id = cursor.lastrowid
+            self.conn.execute(
+                "INSERT INTO skills_fts(rowid, name, description, procedure) VALUES (?, ?, ?, ?)",
+                (skill_id, name, description, procedure)
+            )
+            return skill_id
 
     def search_skills(self, query: str) -> list[dict]:
         """Full-text search across skills."""
