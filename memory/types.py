@@ -7,6 +7,8 @@ class MemoryType(str, Enum):
     LESSON = "lesson"
     SKILL = "skill"
     SESSION = "session"
+    SYSTEM = "system"
+    INDEX = "index"
 
 class MemoryLayer(int, Enum):
     L0 = 0  # system rules

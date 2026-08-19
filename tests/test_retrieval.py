@@ -32,3 +32,14 @@ def test_layered_retrieval(tmp_path):
     types = {r['mem_type'] for r in l4_results}
     assert MemoryType.SESSION in types
     assert MemoryType.PREFERENCE in types
+    
+    # Test empty query should return all for layer
+    empty_results = retriever.retrieve(layer=MemoryLayer.L2, query="")
+    assert len(empty_results) == 2
+    
+    # Test L0 and L1
+    store.add_memory("System rule 1", mem_type=MemoryType.SYSTEM)
+    l0_results = retriever.retrieve(layer=MemoryLayer.L0, query="")
+    assert len(l0_results) == 1
+    assert l0_results[0]['mem_type'] == MemoryType.SYSTEM
+
