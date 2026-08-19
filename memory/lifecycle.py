@@ -72,6 +72,7 @@ class ExtractedFact:
     """A fact extracted from execution history."""
     content: str
     source: str = ""
+    entry_type: str = ""
     confidence: float = 0.5
     verified: bool = False
 
@@ -99,7 +100,7 @@ class FinalizationResult:
 
 # Patterns that indicate content should be rejected
 _TEMP_VAR_PATTERNS = re.compile(
-    r"(?:^tmp_|^temp_|^_tmp|^_temp|^\$\{|^var\d+|^i\s*=|^j\s*=|^x\s*=)",
+    r"(?:^tmp_|^temp_|^_tmp|^_temp|^\$\{|^var\d+|^[ijx]\s*=\s*\d)",
     re.IGNORECASE,
 )
 _REASONING_MARKERS = [
@@ -231,6 +232,7 @@ def _extract_facts(history: List[Dict[str, Any]]) -> List[ExtractedFact]:
             fact = ExtractedFact(
                 content=content,
                 source=entry.get("source", ""),
+                entry_type=entry_type,
                 confidence=float(entry.get("confidence", 0.5)),
                 verified=bool(entry.get("verified", False)),
             )
@@ -317,7 +319,10 @@ def finalize_task_memory(
     # --- Persist L2 (environment facts) ----------------------------------
     for fact in facts:
         try:
-            mem_type = MemoryType.ENVIRONMENT if "environment" in fact.source.lower() else MemoryType.FACT
+            if fact.entry_type == "environment" or "environment" in fact.source.lower():
+                mem_type = MemoryType.ENVIRONMENT
+            else:
+                mem_type = MemoryType.FACT
         except Exception:
             mem_type = MemoryType.FACT
         try:

@@ -31,8 +31,13 @@ class TestFilterHelpers:
         assert _is_temporary_variable("_tmp123")
         assert _is_temporary_variable("var42")
         assert _is_temporary_variable("i = 0")
+        assert _is_temporary_variable("x=5")
+        assert _is_temporary_variable("j = 99")
         assert not _is_temporary_variable("The server runs on port 8080")
         assert not _is_temporary_variable("important_setting = true")
+        # Tightened: free-text starting with single letters should NOT be rejected
+        assert not _is_temporary_variable("i = the index used in the main loop")
+        assert not _is_temporary_variable("x marks the spot")
 
     def test_is_reasoning_chain(self):
         assert _is_reasoning_chain("Let me think about this")
@@ -279,6 +284,20 @@ class TestFinalizeTaskMemory:
         # Check it was stored as environment type
         rows = store.conn.execute(
             "SELECT type FROM memories WHERE content = ?", ("Docker version 24.0.5",)
+        ).fetchall()
+        assert len(rows) == 1
+        assert rows[0]["type"] == "environment"
+
+    def test_environment_entry_type_routes_without_source(self, store):
+        """Entry type='environment' should route to ENVIRONMENT even if source doesn't contain 'environment'."""
+        history = [
+            {"type": "environment", "content": "Node.js v20 installed", "source": "scan"},
+        ]
+        result = finalize_task_memory(history, store)
+        assert result.facts_persisted == 1
+
+        rows = store.conn.execute(
+            "SELECT type FROM memories WHERE content = ?", ("Node.js v20 installed",)
         ).fetchall()
         assert len(rows) == 1
         assert rows[0]["type"] == "environment"
