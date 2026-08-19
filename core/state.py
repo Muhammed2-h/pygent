@@ -30,3 +30,19 @@ class AgentState:
         if self.get_wall_time() >= self.max_wall_time:
             return True
         return False
+
+class ExecutionState:
+    def __init__(self, task_id: str, session_id: str):
+        self.task_id: str = task_id
+        self.session_id: str = session_id
+        self.turn: int = 0
+        self.current_goal: Optional[str] = None
+        self.current_step: Optional[str] = None
+        self.constraints: List[str] = []
+        self.observations: List[str] = []
+        self.failures: List[str] = []
+        self.last_action: Optional[dict] = None
+        self.last_result: Optional[dict] = None
+        self.working_memory: dict = {}
+        self.browser_state: dict = {}
+        self.environment_state: dict = {}
