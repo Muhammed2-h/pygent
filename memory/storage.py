@@ -36,11 +36,17 @@ class MemoryStore:
                     success_count INTEGER DEFAULT 0,
                     failure_count INTEGER DEFAULT 0,
                     last_used TEXT,
+                    state TEXT DEFAULT 'candidate',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )
             """)
             
+            try:
+                self.conn.execute("ALTER TABLE skills ADD COLUMN state TEXT DEFAULT 'candidate'")
+            except sqlite3.OperationalError:
+                pass
+                
             # FTS for memories
             self.conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
@@ -95,7 +101,7 @@ class MemoryStore:
             """)
 
     def add_memory(self, content: str, mem_type: str = "semantic", title: str = "") -> int:
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        now = datetime.datetime.now(datetime.UTC).isoformat()
         if not title:
             words = content.split()
             title = " ".join(words[:5]) + ("..." if len(words) > 5 else "")
@@ -121,11 +127,19 @@ class MemoryStore:
         return [dict(row) for row in cursor.fetchall()]
 
     def mark_superseded(self, memory_id: int, superseded_by: int = -1):
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        now = datetime.datetime.now(datetime.UTC).isoformat()
         with self.conn:
             self.conn.execute(
                 "UPDATE memories SET superseded_by = ?, updated_at = ? WHERE id = ?",
                 (superseded_by, now, memory_id),
+            )
+
+    def update_skill_state(self, name: str, state: str) -> None:
+        now = datetime.datetime.now(datetime.UTC).isoformat()
+        with self.conn:
+            self.conn.execute(
+                "UPDATE skills SET state = ?, updated_at = ? WHERE name = ?",
+                (state, now, name)
             )
 
     def add_skill(
@@ -139,7 +153,7 @@ class MemoryStore:
         confidence: float = 0.5,
     ) -> int:
         """Insert a new skill or update an existing one by name (upsert)."""
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        now = datetime.datetime.now(datetime.UTC).isoformat()
         with self.conn:
             existing = self.conn.execute(
                 "SELECT id FROM skills WHERE name = ?", (name,)
@@ -177,24 +191,26 @@ class MemoryStore:
         return [dict(row) for row in cursor.fetchall()]
 
     def record_skill_success(self, name: str) -> None:
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        now = datetime.datetime.now(datetime.UTC).isoformat()
         with self.conn:
             skill = self.conn.execute("SELECT confidence, success_count FROM skills WHERE name = ?", (name,)).fetchone()
             if skill:
-                new_conf = min(1.0, skill["confidence"] + 0.15)
+                increments = [0.15, 0.10, 0.05, 0.02, 0.01]
+                inc = increments[skill["success_count"]] if skill["success_count"] < len(increments) else 0.01
+                new_conf = round(min(1.0, skill["confidence"] + inc), 2)
                 self.conn.execute(
                     "UPDATE skills SET confidence = ?, success_count = ?, last_used = ?, updated_at = ? WHERE name = ?",
                     (new_conf, skill["success_count"] + 1, now, now, name)
                 )
 
     def record_skill_failure(self, name: str) -> None:
-        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        now = datetime.datetime.now(datetime.UTC).isoformat()
         with self.conn:
             skill = self.conn.execute("SELECT confidence, failure_count FROM skills WHERE name = ?", (name,)).fetchone()
             if skill:
-                new_conf = max(0.0, skill["confidence"] - 0.15)
+                new_conf = round(max(0.0, skill["confidence"] - 0.15), 2)
                 self.conn.execute(
-                    "UPDATE skills SET confidence = ?, failure_count = ?, last_used = ?, updated_at = ? WHERE name = ?",
+                    "UPDATE skills SET confidence = ?, failure_count = ?, last_used = ?, state = 'degraded', updated_at = ? WHERE name = ?",
                     (new_conf, skill["failure_count"] + 1, now, now, name)
                 )
 

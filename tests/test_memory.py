@@ -139,29 +139,48 @@ def test_skill_lifecycle(tmp_path):
     store = MemoryStore(db_path)
     store.add_skill("test_skill", "desc", "proc", confidence=0.50)
     
-    # Test success
+    # Test initial state
+    with store.conn:
+        row = store.conn.execute("SELECT state FROM skills WHERE name='test_skill'").fetchone()
+        assert row["state"] == 'candidate'
+
+    # Test success 1 (0.50 + 0.15 = 0.65)
     store.record_skill_success("test_skill")
     with store.conn:
         row = store.conn.execute("SELECT confidence, success_count FROM skills WHERE name='test_skill'").fetchone()
-        assert abs(row["confidence"] - 0.65) < 0.001
+        assert row["confidence"] == 0.65
         assert row["success_count"] == 1
         
+    # Test success 2 (0.65 + 0.10 = 0.75)
+    store.record_skill_success("test_skill")
+    with store.conn:
+        row = store.conn.execute("SELECT confidence, success_count FROM skills WHERE name='test_skill'").fetchone()
+        assert row["confidence"] == 0.75
+        assert row["success_count"] == 2
+
     # Test failure
     store.record_skill_failure("test_skill")
     with store.conn:
-        row = store.conn.execute("SELECT confidence, failure_count FROM skills WHERE name='test_skill'").fetchone()
-        assert abs(row["confidence"] - 0.50) < 0.001
+        row = store.conn.execute("SELECT confidence, failure_count, state FROM skills WHERE name='test_skill'").fetchone()
+        assert row["confidence"] == 0.60
         assert row["failure_count"] == 1
+        assert row["state"] == 'degraded'
+
+    # Test state update
+    store.update_skill_state("test_skill", "reused")
+    with store.conn:
+        row = store.conn.execute("SELECT state FROM skills WHERE name='test_skill'").fetchone()
+        assert row["state"] == 'reused'
 
     # Test clamp upper
-    for _ in range(5):
+    for _ in range(50):
         store.record_skill_success("test_skill")
     with store.conn:
         row = store.conn.execute("SELECT confidence FROM skills WHERE name='test_skill'").fetchone()
         assert row["confidence"] == 1.0
         
     # Test clamp lower
-    for _ in range(10):
+    for _ in range(20):
         store.record_skill_failure("test_skill")
     with store.conn:
         row = store.conn.execute("SELECT confidence FROM skills WHERE name='test_skill'").fetchone()
