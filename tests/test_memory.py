@@ -121,3 +121,15 @@ def test_memory_service_standalone_and_edge_cases():
         if os.path.exists(db_path):
             os.remove(db_path)
 
+
+def test_new_tables_created(tmp_path):
+    db_path = str(tmp_path / "test_tables.db")
+    store = MemoryStore(db_path)
+    
+    with store.conn:
+        tables = store.conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        table_names = [t["name"] for t in tables]
+        assert "memories" in table_names
+        assert "skills" in table_names
+        assert "memory_fts" in table_names
+        assert "skills_fts" in table_names
