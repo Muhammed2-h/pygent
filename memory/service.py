@@ -1,3 +1,4 @@
+import re
 from .storage import MemoryStore
 from .privacy import PrivacyFilter
 
@@ -12,7 +13,7 @@ class MemoryService:
         self.store.add_memory(clean_content, mem_type)
 
     def get_context_for(self, query: str) -> str:
-        words = [w for w in query.split() if len(w) > 3]
+        words = [w for w in re.findall(r"\w+", query) if len(w) > 3]
         if not words:
             return ""
         fts_query = " OR ".join(words[:5])
