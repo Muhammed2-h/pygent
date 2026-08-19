@@ -43,3 +43,57 @@ def test_layered_retrieval(tmp_path):
     assert len(l0_results) == 1
     assert l0_results[0]['mem_type'] == MemoryType.SYSTEM
 
+
+def test_advanced_retrieval(tmp_path):
+    import datetime
+    db_path = str(tmp_path / "test_adv_retrieval.db")
+    store = MemoryStore(db_path)
+    
+    # Add skills manually
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    old = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=10)).isoformat()
+    store.conn.execute(
+        "INSERT INTO skills (name, description, procedure, success_count, failure_count, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("skill1", "A fast python skill", "def fast(): pass", 10, 0, now, now)
+    )
+    store.conn.execute(
+        "INSERT INTO skills (name, description, procedure, success_count, failure_count, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("skill2", "A slow python skill", "def slow(): pass", 2, 8, old, old)
+    )
+    
+    # Add memories
+    store.add_memory("System is running ubuntu linux", mem_type=MemoryType.ENVIRONMENT)
+    store.add_memory("Agent name is test bot", mem_type=MemoryType.FACT)
+    store.add_memory("Always write tests before code", mem_type=MemoryType.LESSON)
+    store.add_memory("User likes dark mode", mem_type=MemoryType.PREFERENCE)
+    
+    retriever = LayeredRetriever(store)
+    
+    # Test get_relevant_skills
+    skills = retriever.get_relevant_skills("python")
+    assert len(skills) == 2
+    # skill1 should rank higher due to success rate and recency
+    assert skills[0]['name'] == 'skill1'
+    assert skills[1]['name'] == 'skill2'
+    
+    # Test get_environment_facts
+    env_facts = retriever.get_environment_facts()
+    types = {f['mem_type'] for f in env_facts}
+    assert MemoryType.ENVIRONMENT in types
+    assert MemoryType.FACT in types
+    assert len(env_facts) == 2
+    
+    # Test get_environment_facts with query
+    env_facts_query = retriever.get_environment_facts("ubuntu")
+    assert len(env_facts_query) == 1
+    assert "ubuntu" in env_facts_query[0]['content']
+    
+    # Test get_recent_lessons
+    lessons = retriever.get_recent_lessons()
+    assert len(lessons) == 1
+    assert "tests before code" in lessons[0]['content']
+    
+    # Test global search
+    results = retriever.search("dark mode")
+    assert len(results) == 1
+    assert results[0]['mem_type'] == MemoryType.PREFERENCE
