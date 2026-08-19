@@ -1,5 +1,5 @@
 import sqlite3
-
+import datetime
 
 class MemoryStore:
     def __init__(self, db_path: str = "memory.db"):
@@ -10,57 +10,108 @@ class MemoryStore:
     def _init_db(self):
         with self.conn:
             self.conn.execute("""
-                CREATE TABLE IF NOT EXISTS memory_data (
+                CREATE TABLE IF NOT EXISTS memories (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    type TEXT NOT NULL,
+                    title TEXT NOT NULL,
                     content TEXT NOT NULL,
-                    mem_type TEXT NOT NULL,
-                    superseded BOOLEAN DEFAULT 0
+                    source TEXT,
+                    confidence REAL DEFAULT 0.5,
+                    verified INTEGER DEFAULT 0,
+                    superseded_by INTEGER,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
                 )
             """)
             self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS skills (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE NOT NULL,
+                    description TEXT NOT NULL,
+                    trigger TEXT,
+                    procedure TEXT NOT NULL,
+                    prerequisites TEXT,
+                    verification TEXT,
+                    confidence REAL DEFAULT 0.5,
+                    success_count INTEGER DEFAULT 0,
+                    failure_count INTEGER DEFAULT 0,
+                    last_used TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+            
+            # FTS for memories
+            self.conn.execute("""
                 CREATE VIRTUAL TABLE IF NOT EXISTS memory_fts USING fts5(
                     content,
-                    content='memory_data',
+                    title,
+                    content='memories',
                     content_rowid='id'
                 )
             """)
             self.conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS memory_fts_insert AFTER INSERT ON memory_data BEGIN
-                    INSERT INTO memory_fts(rowid, content) VALUES (new.id, new.content);
+                CREATE TRIGGER IF NOT EXISTS memory_fts_insert AFTER INSERT ON memories BEGIN
+                    INSERT INTO memory_fts(rowid, content, title) VALUES (new.id, new.content, new.title);
                 END
             """)
             self.conn.execute("""
-                CREATE TRIGGER IF NOT EXISTS memory_fts_update AFTER UPDATE ON memory_data BEGIN
-                    INSERT INTO memory_fts(memory_fts, rowid, content) VALUES('delete', old.id, old.content);
-                    INSERT INTO memory_fts(rowid, content) VALUES (new.id, new.content);
+                CREATE TRIGGER IF NOT EXISTS memory_fts_update AFTER UPDATE ON memories BEGIN
+                    INSERT INTO memory_fts(memory_fts, rowid, content, title) VALUES('delete', old.id, old.content, old.title);
+                    INSERT INTO memory_fts(rowid, content, title) VALUES (new.id, new.content, new.title);
+                END
+            """)
+            
+            # FTS for skills
+            self.conn.execute("""
+                CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(
+                    name,
+                    description,
+                    procedure,
+                    content='skills',
+                    content_rowid='id'
+                )
+            """)
+            self.conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS skills_fts_insert AFTER INSERT ON skills BEGIN
+                    INSERT INTO skills_fts(rowid, name, description, procedure) VALUES (new.id, new.name, new.description, new.procedure);
+                END
+            """)
+            self.conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS skills_fts_update AFTER UPDATE ON skills BEGIN
+                    INSERT INTO skills_fts(skills_fts, rowid, name, description, procedure) VALUES('delete', old.id, old.name, old.description, old.procedure);
+                    INSERT INTO skills_fts(rowid, name, description, procedure) VALUES (new.id, new.name, new.description, new.procedure);
                 END
             """)
 
     def add_memory(self, content: str, mem_type: str = "semantic") -> int:
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        title = "Untitled"
         with self.conn:
             cursor = self.conn.execute(
-                "INSERT INTO memory_data (content, mem_type) VALUES (?, ?)",
-                (content, mem_type),
+                "INSERT INTO memories (type, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                (mem_type, title, content, now, now),
             )
             return cursor.lastrowid
 
     def search(self, query: str) -> list[dict]:
         cursor = self.conn.execute(
             """
-            SELECT d.id, d.content, d.mem_type, d.superseded 
+            SELECT d.id, d.content, d.type as mem_type, (CASE WHEN d.superseded_by IS NULL THEN 0 ELSE 1 END) as superseded 
             FROM memory_fts f
-            JOIN memory_data d ON f.rowid = d.id
-            WHERE memory_fts MATCH ? AND d.superseded = 0
+            JOIN memories d ON f.rowid = d.id
+            WHERE memory_fts MATCH ? AND d.superseded_by IS NULL
             """,
             (query,),
         )
         return [dict(row) for row in cursor.fetchall()]
 
     def mark_superseded(self, memory_id: int):
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self.conn:
             self.conn.execute(
-                "UPDATE memory_data SET superseded = 1 WHERE id = ?",
-                (memory_id,),
+                "UPDATE memories SET superseded_by = -1, updated_at = ? WHERE id = ?",
+                (now, memory_id),
             )
 
     def close(self):
