@@ -1,10 +1,14 @@
 import sqlite3
 import datetime
+import pathlib
+import os
 
 class MemoryStore:
     def __init__(self, db_path: str = "memory.db"):
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
+        self.db_path = pathlib.Path(db_path)
+        self.skills_dir = self.db_path.parent / "skills"
         self._init_db()
 
     def _init_db(self):
@@ -142,6 +146,28 @@ class MemoryStore:
                 (state, now, name)
             )
 
+    def _write_skill_markdown(self, name: str, procedure: str):
+        skill_path = self.skills_dir / f"{name}.md"
+        skill_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(skill_path, "w", encoding="utf-8") as f:
+            f.write(procedure)
+
+    def _read_skill_markdown(self, name: str, default_procedure: str) -> str:
+        skill_path = self.skills_dir / f"{name}.md"
+        if skill_path.exists():
+            with open(skill_path, "r", encoding="utf-8") as f:
+                return f.read()
+        return default_procedure
+
+    def get_skill(self, name: str) -> dict | None:
+        cursor = self.conn.execute("SELECT * FROM skills WHERE name = ?", (name,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        result["procedure"] = self._read_skill_markdown(name, result["procedure"])
+        return result
+
     def add_skill(
         self,
         name: str,
@@ -154,6 +180,9 @@ class MemoryStore:
     ) -> int:
         """Insert a new skill or update an existing one by name (upsert)."""
         now = datetime.datetime.now(datetime.UTC).isoformat()
+        
+        self._write_skill_markdown(name, procedure)
+        
         with self.conn:
             existing = self.conn.execute(
                 "SELECT id FROM skills WHERE name = ?", (name,)
@@ -188,7 +217,10 @@ class MemoryStore:
                WHERE skills_fts MATCH ?""",
             (query,),
         )
-        return [dict(row) for row in cursor.fetchall()]
+        results = [dict(row) for row in cursor.fetchall()]
+        for r in results:
+            r["procedure"] = self._read_skill_markdown(r["name"], r["procedure"])
+        return results
 
     def record_skill_success(self, name: str) -> None:
         now = datetime.datetime.now(datetime.UTC).isoformat()
