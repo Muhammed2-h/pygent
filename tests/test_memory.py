@@ -55,3 +55,69 @@ def test_memory_search_multiple_and_no_match(tmp_path):
 
     no_match = store.search("Golang")
     assert len(no_match) == 0
+
+
+def test_privacy_filter():
+    from memory.privacy import PrivacyFilter
+
+    privacy = PrivacyFilter()
+    text = "Here is my openai key: sk-abcdefghijklmnopqrstuvwxyz12345 and gemini key: AIzaSyD12345678901234567890123456789012 and normal text."
+    scrubbed = privacy.scrub(text)
+    assert "sk-" not in scrubbed
+    assert "[REDACTED_API_KEY]" in scrubbed
+    assert "AIzaSy" not in scrubbed
+    assert "[REDACTED_GEMINI_KEY]" in scrubbed
+    assert "normal text" in scrubbed
+
+
+def test_memory_service(tmp_path):
+    from memory.privacy import PrivacyFilter
+    from memory.service import MemoryService
+
+    db_path = str(tmp_path / "test_memory_svc.db")
+    store = MemoryStore(db_path)
+    privacy = PrivacyFilter()
+    svc = MemoryService(store, privacy)
+
+    svc.add("My key is sk-12345678901234567890 and I like python.")
+    context = svc.get_context_for("python")
+
+    assert "[REDACTED_API_KEY]" in context
+    assert "sk-" not in context
+    assert "Relevant Context:" in context
+    assert "- My key is [REDACTED_API_KEY] and I like python." in context
+
+
+def test_memory_service_standalone_and_edge_cases():
+    import os
+    from memory.privacy import PrivacyFilter
+    from memory.service import MemoryService
+
+    db_path = "test_memory_svc_standalone.db"
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    try:
+        store = MemoryStore(db_path)
+        privacy = PrivacyFilter()
+        svc = MemoryService(store, privacy)
+
+        svc.add("User prefers dark mode and vim keybindings", "preference")
+        svc.add("User is working on a machine learning project with Python", "semantic")
+
+        # Test short words query
+        assert svc.get_context_for("a is on") == ""
+
+        # Test no match
+        assert svc.get_context_for("javascript typescript") == ""
+
+        # Test context formatting
+        ctx = svc.get_context_for("machine learning")
+        assert "Relevant Context:" in ctx
+        assert "machine learning" in ctx
+
+        # Test special characters/invalid FTS query resilience
+        assert svc.get_context_for('*** """ :::') == ""
+    finally:
+        if os.path.exists(db_path):
+            os.remove(db_path)
+
