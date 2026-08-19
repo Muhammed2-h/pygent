@@ -176,5 +176,27 @@ class MemoryStore:
         )
         return [dict(row) for row in cursor.fetchall()]
 
+    def record_skill_success(self, name: str) -> None:
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        with self.conn:
+            skill = self.conn.execute("SELECT confidence, success_count FROM skills WHERE name = ?", (name,)).fetchone()
+            if skill:
+                new_conf = min(1.0, skill["confidence"] + 0.15)
+                self.conn.execute(
+                    "UPDATE skills SET confidence = ?, success_count = ?, last_used = ?, updated_at = ? WHERE name = ?",
+                    (new_conf, skill["success_count"] + 1, now, now, name)
+                )
+
+    def record_skill_failure(self, name: str) -> None:
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        with self.conn:
+            skill = self.conn.execute("SELECT confidence, failure_count FROM skills WHERE name = ?", (name,)).fetchone()
+            if skill:
+                new_conf = max(0.0, skill["confidence"] - 0.15)
+                self.conn.execute(
+                    "UPDATE skills SET confidence = ?, failure_count = ?, last_used = ?, updated_at = ? WHERE name = ?",
+                    (new_conf, skill["failure_count"] + 1, now, now, name)
+                )
+
     def close(self):
         self.conn.close()

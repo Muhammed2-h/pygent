@@ -133,3 +133,37 @@ def test_new_tables_created(tmp_path):
         assert "skills" in table_names
         assert "memory_fts" in table_names
         assert "skills_fts" in table_names
+
+def test_skill_lifecycle(tmp_path):
+    db_path = str(tmp_path / "test_skills.db")
+    store = MemoryStore(db_path)
+    store.add_skill("test_skill", "desc", "proc", confidence=0.50)
+    
+    # Test success
+    store.record_skill_success("test_skill")
+    with store.conn:
+        row = store.conn.execute("SELECT confidence, success_count FROM skills WHERE name='test_skill'").fetchone()
+        assert abs(row["confidence"] - 0.65) < 0.001
+        assert row["success_count"] == 1
+        
+    # Test failure
+    store.record_skill_failure("test_skill")
+    with store.conn:
+        row = store.conn.execute("SELECT confidence, failure_count FROM skills WHERE name='test_skill'").fetchone()
+        assert abs(row["confidence"] - 0.50) < 0.001
+        assert row["failure_count"] == 1
+
+    # Test clamp upper
+    for _ in range(5):
+        store.record_skill_success("test_skill")
+    with store.conn:
+        row = store.conn.execute("SELECT confidence FROM skills WHERE name='test_skill'").fetchone()
+        assert row["confidence"] == 1.0
+        
+    # Test clamp lower
+    for _ in range(10):
+        store.record_skill_failure("test_skill")
+    with store.conn:
+        row = store.conn.execute("SELECT confidence FROM skills WHERE name='test_skill'").fetchone()
+        assert row["confidence"] == 0.0
+
