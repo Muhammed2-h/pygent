@@ -49,7 +49,7 @@ def main():
 
     agent = Agent(provider, tools, config.default_model, config.max_agent_steps)
 
-    print("Agent started. Type /quit to exit.")
+    print("Pygent started. Type /quit to exit.")
     while True:
         try:
             user_in = input("> ")
