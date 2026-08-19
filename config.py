@@ -14,7 +14,10 @@ class Config(BaseModel):
 def load_config() -> Config:
     load_dotenv()
     max_steps_env = os.getenv("MAX_AGENT_STEPS")
-    max_steps = int(max_steps_env) if max_steps_env and max_steps_env.strip() else 8
+    try:
+        max_steps = int(max_steps_env) if max_steps_env and max_steps_env.strip() else 8
+    except ValueError:
+        max_steps = 8
     return Config(
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"),

@@ -27,7 +27,8 @@ def main():
         if config.gemini_api_key:
             print("Gemini Key: Present")
         print("Checking Database...")
-        MemoryStore(db_path)
+        store = MemoryStore(db_path)
+        store.close()
         print(f"Database OK at {db_path}")
         return
 
@@ -36,6 +37,7 @@ def main():
         svc = MemoryService(store, PrivacyFilter())
         svc.add("The user loves Python and SQLite.")
         print(svc.get_context_for("What does the user love?"))
+        store.close()
         return
 
     if not config.openai_api_key:

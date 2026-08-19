@@ -11,8 +11,9 @@ def test_tool_registry_calculate():
     res_add = registry.execute("calculate", {"expression": "10 + 5"})
     assert res_add == "15"
 
+    # Exponentiation is intentionally disabled to prevent DoS (e.g. 99999**99999)
     res_pow = registry.execute("calculate", {"expression": "2 ** 3"})
-    assert res_pow == "8"
+    assert res_pow.startswith("Error:")
 
     res_neg = registry.execute("calculate", {"expression": "-5 + 2"})
     assert res_neg == "-3"
