@@ -22,6 +22,10 @@ def main():
         print("Checking Configuration...")
         if config.openai_api_key:
             print("OpenAI Key: Present")
+        if config.anthropic_api_key:
+            print("Anthropic Key: Present")
+        if config.gemini_api_key:
+            print("Gemini Key: Present")
         print("Checking Database...")
         MemoryStore(db_path)
         print(f"Database OK at {db_path}")
@@ -43,7 +47,7 @@ def main():
     memory_store = MemoryStore(db_path)
     memory_svc = MemoryService(memory_store, PrivacyFilter())
 
-    agent = Agent(provider, tools, config.max_agent_steps)
+    agent = Agent(provider, tools, config.default_model, config.max_agent_steps)
 
     print("Agent started. Type /quit to exit.")
     while True:

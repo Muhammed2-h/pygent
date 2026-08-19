@@ -55,7 +55,10 @@ class ToolRegistry:
     def execute(self, name: str, args: Dict[str, Any]) -> str:
         if name not in self.tools:
             return f"Error: tool {name} not found"
-        return str(self.tools[name](**args))
+        try:
+            return str(self.tools[name](**args))
+        except Exception as e:
+            return f"Error executing tool {name}: {e}"
 
     def get_tool_schemas(self) -> List[dict]:
         return [

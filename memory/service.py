@@ -16,7 +16,7 @@ class MemoryService:
         words = [w for w in re.findall(r"\w+", query) if len(w) > 3]
         if not words:
             return ""
-        fts_query = " OR ".join(words[:5])
+        fts_query = " OR ".join(f'"{w}"' for w in words[:5])
 
         try:
             results = self.store.search(fts_query)

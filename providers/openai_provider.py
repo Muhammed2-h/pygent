@@ -45,14 +45,19 @@ class OpenAIProvider(BaseProvider):
 
         parsed_tools = None
         if choice.message.tool_calls:
-            parsed_tools = [
-                ToolCall(
+            parsed_tools = []
+            for t in choice.message.tool_calls:
+                try:
+                    args = json.loads(t.function.arguments)
+                    name = t.function.name
+                except json.JSONDecodeError:
+                    args = {"error": "Invalid JSON arguments"}
+                    name = "error"
+                parsed_tools.append(ToolCall(
                     id=t.id,
-                    name=t.function.name,
-                    arguments=json.loads(t.function.arguments),
-                )
-                for t in choice.message.tool_calls
-            ]
+                    name=name,
+                    arguments=args
+                ))
 
         out_msg = Message(
             role="assistant",

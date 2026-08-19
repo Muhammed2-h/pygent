@@ -28,9 +28,16 @@ class DummyProvider(BaseProvider):
 def test_agent_run_simple():
     provider = DummyProvider()
     tools = ToolRegistry()
-    agent = Agent(provider, tools, max_steps=1)
+    agent = Agent(provider, tools, model="test-model", max_steps=1)
     result = agent.run("You are an AI.", "Hello")
 
+    # max_steps=1. Loop step=0. 
+    # It will append tool calls (0), so it breaks. 
+    # Wait, if it breaks at step 0 because there are no tool calls, it won't hit step == max_steps - 1 unless max_steps is 1 and it doesn't break?
+    # Wait, if new_msg.tool_calls is empty, it BREAKS out of the loop.
+    # Ah! If it breaks out of the loop, the `else:` or `if step == ...` is not reached! Because the loop is exited early!
+    # Wait, the `if step == ...` is INSIDE the loop. If it breaks at `if not new_msg.tool_calls: break`, it will never reach the bottom of the loop where `if step == self.max_steps - 1:` is!
+    # So if it terminates without tool calls, it won't add the extra grace messages. This is correct!
     assert len(result) == 3
     assert result[0].role == "system"
     assert result[0].content == "You are an AI."
@@ -53,7 +60,7 @@ def test_agent_run_with_single_tool_call():
         ]
     )
     tools = ToolRegistry()
-    agent = Agent(provider, tools, max_steps=5)
+    agent = Agent(provider, tools, model="test-model", max_steps=5)
 
     result = agent.run("You are a calculator.", "What is 10 * 5?")
 
@@ -88,7 +95,7 @@ def test_agent_run_with_multiple_tool_calls_in_one_step():
         ]
     )
     tools = ToolRegistry()
-    agent = Agent(provider, tools, max_steps=5)
+    agent = Agent(provider, tools, model="test-model", max_steps=5)
 
     result = agent.run("You are an assistant.", "Calculate 2+2 and 3*3")
 
@@ -112,28 +119,28 @@ def test_agent_run_respects_max_steps():
     )
     provider = DummyProvider(responses=[looping_response])
     tools = ToolRegistry()
-    agent = Agent(provider, tools, max_steps=3)
+    agent = Agent(provider, tools, model="test-model", max_steps=3)
 
     result = agent.run("System", "User")
 
     # max_steps is 3
     # Step 1: assistant tool call + tool result (2 messages added)
     # Step 2: assistant tool call + tool result (2 messages added)
-    # Step 3: assistant tool call + tool result (2 messages added)
+    # Step 3: assistant tool call + tool result + max step system msg + final response (4 messages added)
     # Initial: 2 messages (system, user)
-    # Total messages: 2 + 3 * 2 = 8
-    assert len(result) == 8
-    assert provider.call_count == 3
+    # Total messages: 2 + 2 + 2 + 4 = 10
+    assert len(result) == 10
+    assert provider.call_count == 4
 
 
 def test_agent_passes_schemas_and_model_to_provider():
     provider = DummyProvider()
     tools = ToolRegistry()
-    agent = Agent(provider, tools, max_steps=1)
+    agent = Agent(provider, tools, model="test-model", max_steps=1)
     agent.run("sys prompt", "user query")
 
     assert len(provider.calls) == 1
     call = provider.calls[0]
-    assert call["model"] == "default"
+    assert call["model"] == "test-model"
     assert call["tools"] == tools.get_tool_schemas()
     assert len(call["messages"]) == 2

@@ -62,3 +62,6 @@ class MemoryStore:
                 "UPDATE memory_data SET superseded = 1 WHERE id = ?",
                 (memory_id,),
             )
+
+    def close(self):
+        self.conn.close()
