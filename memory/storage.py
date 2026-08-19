@@ -61,6 +61,11 @@ class MemoryStore:
                     INSERT INTO memory_fts(rowid, content, title) VALUES (new.id, new.content, new.title);
                 END
             """)
+            self.conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS memory_fts_delete AFTER DELETE ON memories BEGIN
+                    INSERT INTO memory_fts(memory_fts, rowid, content, title) VALUES('delete', old.id, old.content, old.title);
+                END
+            """)
             
             # FTS for skills
             self.conn.execute("""
@@ -83,10 +88,19 @@ class MemoryStore:
                     INSERT INTO skills_fts(rowid, name, description, procedure) VALUES (new.id, new.name, new.description, new.procedure);
                 END
             """)
+            self.conn.execute("""
+                CREATE TRIGGER IF NOT EXISTS skills_fts_delete AFTER DELETE ON skills BEGIN
+                    INSERT INTO skills_fts(skills_fts, rowid, name, description, procedure) VALUES('delete', old.id, old.name, old.description, old.procedure);
+                END
+            """)
 
-    def add_memory(self, content: str, mem_type: str = "semantic") -> int:
+    def add_memory(self, content: str, mem_type: str = "semantic", title: str = "") -> int:
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        title = "Untitled"
+        if not title:
+            words = content.split()
+            title = " ".join(words[:5]) + ("..." if len(words) > 5 else "")
+            if not title:
+                title = "Untitled"
         with self.conn:
             cursor = self.conn.execute(
                 "INSERT INTO memories (type, title, content, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
@@ -106,12 +120,12 @@ class MemoryStore:
         )
         return [dict(row) for row in cursor.fetchall()]
 
-    def mark_superseded(self, memory_id: int):
+    def mark_superseded(self, memory_id: int, superseded_by: int = -1):
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self.conn:
             self.conn.execute(
-                "UPDATE memories SET superseded_by = -1, updated_at = ? WHERE id = ?",
-                (now, memory_id),
+                "UPDATE memories SET superseded_by = ?, updated_at = ? WHERE id = ?",
+                (superseded_by, now, memory_id),
             )
 
     def close(self):
