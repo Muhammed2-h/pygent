@@ -128,5 +128,53 @@ class MemoryStore:
                 (superseded_by, now, memory_id),
             )
 
+    def add_skill(
+        self,
+        name: str,
+        description: str,
+        procedure: str,
+        trigger: str = "",
+        prerequisites: str = "",
+        verification: str = "",
+        confidence: float = 0.5,
+    ) -> int:
+        """Insert a new skill or update an existing one by name (upsert)."""
+        now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        with self.conn:
+            existing = self.conn.execute(
+                "SELECT id FROM skills WHERE name = ?", (name,)
+            ).fetchone()
+            if existing:
+                self.conn.execute(
+                    """UPDATE skills
+                       SET description=?, procedure=?, trigger=?,
+                           prerequisites=?, verification=?, confidence=?,
+                           updated_at=?
+                       WHERE name=?""",
+                    (description, procedure, trigger, prerequisites,
+                     verification, confidence, now, name),
+                )
+                return existing["id"]
+            cursor = self.conn.execute(
+                """INSERT INTO skills
+                   (name, description, trigger, procedure, prerequisites,
+                    verification, confidence, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?)""",
+                (name, description, trigger, procedure, prerequisites,
+                 verification, confidence, now, now),
+            )
+            return cursor.lastrowid
+
+    def search_skills(self, query: str) -> list[dict]:
+        """Full-text search across skills."""
+        cursor = self.conn.execute(
+            """SELECT s.*
+               FROM skills_fts f
+               JOIN skills s ON f.rowid = s.id
+               WHERE skills_fts MATCH ?""",
+            (query,),
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
     def close(self):
         self.conn.close()
