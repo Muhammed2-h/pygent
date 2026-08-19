@@ -1,6 +1,7 @@
 import re
 import sqlite3
 import logging
+import datetime
 from typing import List, Dict
 from memory.types import MemoryType, MemoryLayer
 from memory.storage import MemoryStore
@@ -70,7 +71,6 @@ class LayeredRetriever:
 
     def rank(self, results: List[Dict]) -> List[Dict]:
         """Rank results based on FTS relevance + confidence + verification + success rate + recency."""
-        import datetime
         now = datetime.datetime.now(datetime.timezone.utc)
         
         def score(item):
@@ -84,8 +84,8 @@ class LayeredRetriever:
             verification = 1.0 if (item.get('verified') or item.get('verification')) else 0.0
             
             # success rate
-            success = item.get('success_count', 0)
-            failure = item.get('failure_count', 0)
+            success = item.get('success_count') or 0
+            failure = item.get('failure_count') or 0
             total = success + failure
             success_rate = (success / total) if total > 0 else 0.0
             
@@ -98,7 +98,7 @@ class LayeredRetriever:
                     if dt.tzinfo is None:
                         dt = dt.replace(tzinfo=datetime.timezone.utc)
                     age_days = (now - dt).total_seconds() / 86400.0
-                    recency = max(0.0, 1.0 - (age_days / 30.0))
+                    recency = min(1.0, max(0.0, 1.0 - (age_days / 30.0)))
                 except Exception:
                     pass
             
@@ -138,7 +138,7 @@ class LayeredRetriever:
     def get_relevant_skills(self, query: str) -> List[Dict]:
         """Search and rank skills based on query."""
         if not query.strip():
-            sql = "SELECT *, 0.0 as rank FROM skills"
+            sql = "SELECT *, 0.0 as rank FROM skills ORDER BY updated_at DESC LIMIT 50"
             cursor = self.store.conn.execute(sql)
             results = [dict(row) for row in cursor.fetchall()]
             return self.rank(results)
@@ -168,6 +168,7 @@ class LayeredRetriever:
             SELECT *, 0.0 as rank, type as mem_type
             FROM memories
             WHERE type IN (?, ?) AND superseded_by IS NULL
+            ORDER BY updated_at DESC LIMIT 50
         """
         cursor = self.store.conn.execute(sql, [MemoryType.ENVIRONMENT, MemoryType.FACT])
         results = [dict(row) for row in cursor.fetchall()]
@@ -182,8 +183,9 @@ class LayeredRetriever:
                 SELECT *, 0.0 as rank, type as mem_type
                 FROM memories
                 WHERE type = ? AND superseded_by IS NULL
+                ORDER BY updated_at DESC LIMIT ?
             """
-            cursor = self.store.conn.execute(sql, [MemoryType.LESSON])
+            cursor = self.store.conn.execute(sql, [MemoryType.LESSON, limit])
             results = [dict(row) for row in cursor.fetchall()]
             results = self.rank(results)
             
