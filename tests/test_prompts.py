@@ -90,3 +90,18 @@ def test_real_browser_prompt_exists():
     assert "use cdp for difficult cases" in content
     assert "switch strategies" in content
     assert "ask user when blocked" in content
+
+def test_real_memory_prompt_exists():
+    from prompts.builder import PromptBuilder
+    builder = PromptBuilder()
+    memory_path = builder.prompts_dir / "memory.md"
+    assert memory_path.exists()
+    content = memory_path.read_text().lower()
+    assert "store verified information" in content
+    assert "prefer reusable procedures" in content
+    assert "avoid temporary reasoning" in content
+    assert "deduplicate memories" in content
+    assert "update stale skills" in content
+    assert "preserve environment facts" in content
+    assert "record failure lessons" in content
+
