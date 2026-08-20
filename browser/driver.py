@@ -19,7 +19,7 @@ class BrowserDriver:
         req = ExtensionRequest(cmd="enumerate_tabs", payload={})
         msg_id = await self.transport.send_command(session_id, req)
         while True:
-            resp = await self.transport.receive_result(session_id, timeout=10.0)
+            resp = await self.transport.receive_result(session_id, timeout=60.0)
             if resp.id == msg_id:
                 self.transport.acknowledge(session_id, msg_id)
                 if not resp.ok:
@@ -54,7 +54,7 @@ class BrowserDriver:
         try:
             while True:
                 # Use a larger timeout for JS execution
-                resp = await self.transport.receive_result(session_id, timeout=30.0)
+                resp = await self.transport.receive_result(session_id, timeout=60.0)
                 if resp.id == msg_id:
                     self.transport.acknowledge(session_id, msg_id)
                     if not resp.ok:

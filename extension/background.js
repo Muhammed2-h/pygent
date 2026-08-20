@@ -76,6 +76,25 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
   }
 });
 
+
+function waitForTabLoad(tabId) {
+    return new Promise((resolve) => {
+        chrome.tabs.get(tabId, (tab) => {
+            if (!tab || tab.status === 'complete') {
+                resolve();
+            } else {
+                const listener = (tid, changeInfo) => {
+                    if (tid === tabId && changeInfo.status === 'complete') {
+                        chrome.tabs.onUpdated.removeListener(listener);
+                        resolve();
+                    }
+                };
+                chrome.tabs.onUpdated.addListener(listener);
+            }
+        });
+    });
+}
+
 async function handleRequest(msg) {
   const command = msg.cmd;
   const args = msg.payload || {};
@@ -144,6 +163,8 @@ async function handleRequest(msg) {
               const result = await (async function() {
                   ${args.script}
               })();
+              // Add a small delay so that context destruction can be caught if navigating
+              await new Promise(r => setTimeout(r, 50));
               return serialize(result);
           } catch (err) {
               return { __pygent_error: true, message: err.message, stack: err.stack };
@@ -152,10 +173,40 @@ async function handleRequest(msg) {
       `;
 
       return await new Promise((resolve, reject) => {
+          let navigationStarted = false;
+          let createdTabs = [];
+          
+          const navListener = (details) => {
+              if (details.tabId === tabId && details.frameId === 0) {
+                  navigationStarted = true;
+              }
+          };
+          const tabCreatedListener = (tab) => {
+              createdTabs.push(tab.id);
+          };
+          
+          chrome.webNavigation.onBeforeNavigate.addListener(navListener);
+          chrome.tabs.onCreated.addListener(tabCreatedListener);
+          
+          const cleanupAndResolve = async (res) => {
+              // Wait a bit to ensure events are processed
+              await new Promise(r => setTimeout(r, 50));
+              chrome.webNavigation.onBeforeNavigate.removeListener(navListener);
+              chrome.tabs.onCreated.removeListener(tabCreatedListener);
+              
+              if (navigationStarted || (res && typeof res === 'object' && res.__pygent_error && (res.message.includes('Execution context was destroyed') || res.message.includes('unknown context')))) {
+                  await waitForTabLoad(tabId);
+              }
+              for (const tid of createdTabs) {
+                  await waitForTabLoad(tid);
+              }
+              resolve(res);
+          };
+
           const runCDP = () => {
               chrome.debugger.getTargets((targets) => {
                   if (chrome.runtime.lastError) {
-                      return resolve({ __pygent_error: true, message: chrome.runtime.lastError.message });
+                      return cleanupAndResolve({ __pygent_error: true, message: chrome.runtime.lastError.message });
                   }
                   
                   const target = targets.find(t => t.tabId === tabId && t.attached);
@@ -172,17 +223,17 @@ async function handleRequest(msg) {
                           
                           const complete = () => {
                               if (err) {
-                                  resolve({ __pygent_error: true, message: err });
+                                  cleanupAndResolve({ __pygent_error: true, message: err });
                               } else if (res && res.exceptionDetails) {
-                                  resolve({
+                                  cleanupAndResolve({
                                       __pygent_error: true,
                                       message: res.exceptionDetails.exception?.description || res.exceptionDetails.text,
                                       stack: null
                                   });
                               } else if (res && res.result) {
-                                  resolve(res.result.value);
+                                  cleanupAndResolve(res.result.value);
                               } else {
-                                  resolve(null);
+                                  cleanupAndResolve(null);
                               }
                           };
                           
@@ -197,7 +248,7 @@ async function handleRequest(msg) {
                   if (needsDetach) {
                       chrome.debugger.attach({ tabId }, "1.3", () => {
                           if (chrome.runtime.lastError) {
-                              return resolve({ __pygent_error: true, message: chrome.runtime.lastError.message });
+                              return cleanupAndResolve({ __pygent_error: true, message: chrome.runtime.lastError.message });
                           }
                           run();
                       });
@@ -228,7 +279,7 @@ async function handleRequest(msg) {
                   if (res && typeof res === 'object' && res.__pygent_fallback_cdp) {
                       runCDP();
                   } else {
-                      resolve(res);
+                      cleanupAndResolve(res);
                   }
               }
           });
