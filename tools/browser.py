@@ -6,11 +6,15 @@ from browser.session import BrowserSessionManager
 from browser.cdp import CDPClient
 from browser.observer import BrowserObserver
 from .registry import tool
+from browser.policy import BrowserPolicy, RiskLevel
+from tools.human import tool_ask_user
+
 
 _driver: Optional[BrowserDriver] = None
 _session_manager: Optional[BrowserSessionManager] = None
 _observer: Optional[BrowserObserver] = None
 _cdp: Optional[CDPClient] = None
+_policy = BrowserPolicy()
 
 def setup_browser_tools(
     driver: BrowserDriver,
@@ -79,7 +83,7 @@ async def browser_scan(session_id: str, tab_id: Union[int, str], max_chars: int 
     description="Execute custom JavaScript in the specified browser tab. Use this to interact with the DOM, trigger events, extract custom data, or modify page state. Note: this runs in the context of the page, so variables and functions are isolated per page load.",
     category="browser"
 )
-async def browser_execute_js(session_id: str, tab_id: Union[int, str], script: str) -> str:
+async def browser_execute_js(session_id: str, tab_id: Union[int, str], script: str, declared_risk: str = "safe") -> str:
     """
     Executes a script in the specified tab. 
     Returns JSON containing the execution 'result', a 'navigated' boolean, and any 'new_tabs' detected.
@@ -88,6 +92,17 @@ async def browser_execute_js(session_id: str, tab_id: Union[int, str], script: s
         return "Browser tools not initialized."
     if isinstance(tab_id, str) and tab_id.isdigit():
         tab_id = int(tab_id)
+        
+    heuristic_risk = _policy.evaluate_js(script)
+    declared_level = RiskLevel(declared_risk) if declared_risk in ["safe", "sensitive", "dangerous"] else RiskLevel.SAFE
+    
+    actual_risk = max(heuristic_risk, declared_level)
+    
+    if actual_risk == RiskLevel.DANGEROUS:
+        resp = tool_ask_user(f"Action flagged as DANGEROUS. Script: {script[:100]}...", choices=["yes", "no"], risk="dangerous")
+        if resp.lower() not in ["y", "yes"]:
+            return "Action cancelled by user."
+            
     try:
         result = await _driver.execute_js(session_id, tab_id, script)
         return json.dumps(result, indent=2)
@@ -99,7 +114,7 @@ async def browser_execute_js(session_id: str, tab_id: Union[int, str], script: s
     description="Send a raw Chrome DevTools Protocol (CDP) command to the browser tab. Use this for low-level browser automation (e.g., simulating complex input events, overriding network responses, manipulating the box model, etc.). Requires familiarity with CDP methods and parameters.",
     category="browser"
 )
-async def browser_cdp(session_id: str, tab_id: Union[int, str], method: str, params: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None) -> str:
+async def browser_cdp(session_id: str, tab_id: Union[int, str], method: str, params: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None, declared_risk: str = "safe") -> str:
     """
     Executes a CDP command via the browser's debugger API.
     """
@@ -107,6 +122,17 @@ async def browser_cdp(session_id: str, tab_id: Union[int, str], method: str, par
         return "Browser tools not initialized."
     if isinstance(tab_id, str) and tab_id.isdigit():
         tab_id = int(tab_id)
+        
+    heuristic_risk = _policy.evaluate_cdp(method, params)
+    declared_level = RiskLevel(declared_risk) if declared_risk in ["safe", "sensitive", "dangerous"] else RiskLevel.SAFE
+    
+    actual_risk = max(heuristic_risk, declared_level)
+    
+    if actual_risk == RiskLevel.DANGEROUS:
+        resp = tool_ask_user(f"Action flagged as DANGEROUS. CDP Method: {method}", choices=["yes", "no"], risk="dangerous")
+        if resp.lower() not in ["y", "yes"]:
+            return "Action cancelled by user."
+            
     try:
         result = await _cdp.send_command(session_id, tab_id, method, params, timeout=timeout)
         return json.dumps(result, indent=2)

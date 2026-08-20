@@ -1,0 +1,44 @@
+import pytest
+from browser.policy import BrowserPolicy, RiskLevel
+
+def test_risk_level_ordering():
+    assert RiskLevel.DANGEROUS > RiskLevel.SENSITIVE
+    assert RiskLevel.SENSITIVE > RiskLevel.SAFE
+    assert RiskLevel.DANGEROUS > RiskLevel.SAFE
+    assert RiskLevel.SAFE < RiskLevel.DANGEROUS
+    
+    assert max(RiskLevel.SAFE, RiskLevel.DANGEROUS) == RiskLevel.DANGEROUS
+    assert max(RiskLevel.SENSITIVE, RiskLevel.SAFE) == RiskLevel.SENSITIVE
+
+def test_evaluate_js_safe():
+    policy = BrowserPolicy()
+    assert policy.evaluate_js("console.log('hello');") == RiskLevel.SAFE
+    assert policy.evaluate_js("document.querySelector('div')") == RiskLevel.SAFE
+
+def test_evaluate_js_sensitive():
+    policy = BrowserPolicy()
+    assert policy.evaluate_js("document.getElementById('upload').click()") == RiskLevel.SENSITIVE
+    assert policy.evaluate_js("form.submit()") == RiskLevel.SENSITIVE
+    assert policy.evaluate_js("window.downloadFile()") == RiskLevel.SENSITIVE
+
+def test_evaluate_js_dangerous():
+    policy = BrowserPolicy()
+    assert policy.evaluate_js("confirmPurchase()") == RiskLevel.DANGEROUS
+    assert policy.evaluate_js("deleteData()") == RiskLevel.DANGEROUS
+    assert policy.evaluate_js("document.cookie = 'password=123'") == RiskLevel.DANGEROUS
+
+def test_evaluate_cdp_safe():
+    policy = BrowserPolicy()
+    assert policy.evaluate_cdp("Page.navigate", {"url": "https://example.com"}) == RiskLevel.SAFE
+    assert policy.evaluate_cdp("Runtime.evaluate") == RiskLevel.SAFE
+
+def test_evaluate_cdp_sensitive():
+    policy = BrowserPolicy()
+    assert policy.evaluate_cdp("Input.dispatchKeyEvent") == RiskLevel.SENSITIVE
+    assert policy.evaluate_cdp("Fetch.continueRequest") == RiskLevel.SENSITIVE
+
+def test_evaluate_cdp_dangerous():
+    policy = BrowserPolicy()
+    assert policy.evaluate_cdp("Security.setIgnoreCertificateErrors") == RiskLevel.DANGEROUS
+    assert policy.evaluate_cdp("Storage.clearDataForOrigin") == RiskLevel.DANGEROUS
+    assert policy.evaluate_cdp("Runtime.evaluate", {"expression": "delete_account()"}) == RiskLevel.DANGEROUS
