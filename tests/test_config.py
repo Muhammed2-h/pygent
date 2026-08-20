@@ -87,7 +87,7 @@ def test_load_config_defaults(monkeypatch):
     assert cfg.openai_api_key is None
     assert cfg.default_model == "gpt-4o"
     assert cfg.max_agent_steps == 40
-    assert cfg.data_dir == ""
+    assert cfg.data_dir == str(os.path.expanduser("~/.pygent"))
     assert cfg.log_level == "INFO"
     assert cfg.browser_host == "127.0.0.1"
     assert cfg.browser_ws_port == 18765

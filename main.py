@@ -16,7 +16,7 @@ def main():
     args = parser.parse_args()
 
     config = load_config()
-    db_path = os.path.expanduser("~/.agent_memory.db")
+    db_path = os.path.join(config.data_dir, "memory", "memory.db")
 
     if args.check:
         print("Checking Configuration...")

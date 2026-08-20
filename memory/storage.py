@@ -13,7 +13,10 @@ class MemoryStore:
             self.skills_dir = pathlib.Path(self._temp_dir.name) / "skills"
         else:
             self._temp_dir = None
-            self.skills_dir = self.db_path.parent / "skills"
+            if self.db_path.parent.name == "memory":
+                self.skills_dir = self.db_path.parent.parent / "skills"
+            else:
+                self.skills_dir = self.db_path.parent / "skills"
         self._init_db()
 
     def _init_db(self):

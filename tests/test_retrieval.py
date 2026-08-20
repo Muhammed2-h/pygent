@@ -52,14 +52,17 @@ def test_advanced_retrieval(tmp_path):
     # Add skills manually
     now = datetime.datetime.now(datetime.timezone.utc).isoformat()
     old = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=10)).isoformat()
-    store.conn.execute(
-        "INSERT INTO skills (name, description, procedure, success_count, failure_count, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        ("skill1", "A fast python skill", "def fast(): pass", 10, 0, now, now)
-    )
-    store.conn.execute(
-        "INSERT INTO skills (name, description, procedure, success_count, failure_count, updated_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        ("skill2", "A slow python skill", "def slow(): pass", 2, 8, old, old)
-    )
+    store.add_skill("skill1", "A fast python skill", "def fast(): pass")
+    for _ in range(10):
+        store.record_skill_success("skill1")
+    store.conn.execute("UPDATE skills SET updated_at = ?, created_at = ? WHERE name = 'skill1'", (now, now))
+    
+    store.add_skill("skill2", "A slow python skill", "def slow(): pass")
+    for _ in range(2):
+        store.record_skill_success("skill2")
+    for _ in range(8):
+        store.record_skill_failure("skill2")
+    store.conn.execute("UPDATE skills SET updated_at = ?, created_at = ? WHERE name = 'skill2'", (old, old))
     
     # Add memories
     store.add_memory("System is running ubuntu linux", mem_type=MemoryType.ENVIRONMENT)

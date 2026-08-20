@@ -54,8 +54,14 @@ class Config(BaseModel):
 def load_config() -> Config:
     load_dotenv()
 
-    data_dir_raw = os.getenv("PYGENT_DATA_DIR", "")
-    data_dir = str(Path(data_dir_raw).expanduser()) if data_dir_raw else ""
+    data_dir_raw = os.getenv("PYGENT_DATA_DIR")
+    if not data_dir_raw:
+        data_dir_raw = "~/.pygent"
+    data_dir = str(Path(data_dir_raw).expanduser())
+
+    base_dir = Path(data_dir)
+    for subdir in ["memory", "skills", "sessions", "logs", "browser", "temp"]:
+        (base_dir / subdir).mkdir(parents=True, exist_ok=True)
 
     return Config(
         openai_api_key=os.getenv("OPENAI_API_KEY") or None,
