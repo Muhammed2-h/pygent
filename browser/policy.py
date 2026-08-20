@@ -1,8 +1,10 @@
 from enum import Enum
+from functools import total_ordering
 import re
 import json
 
-class RiskLevel(str, Enum):
+@total_ordering
+class RiskLevel(Enum):
     SAFE = "safe"
     SENSITIVE = "sensitive"
     DANGEROUS = "dangerous"
@@ -16,34 +18,21 @@ class RiskLevel(str, Enum):
             return self._order < other._order
         return NotImplemented
 
-    def __le__(self, other):
-        if self.__class__ is other.__class__:
-            return self._order <= other._order
-        return NotImplemented
-
-    def __gt__(self, other):
-        if self.__class__ is other.__class__:
-            return self._order > other._order
-        return NotImplemented
-
-    def __ge__(self, other):
-        if self.__class__ is other.__class__:
-            return self._order >= other._order
-        return NotImplemented
+def extract_words(text: str) -> set:
+    s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', text)
+    s2 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1)
+    return set(w.lower() for w in re.split(r'[^a-zA-Z0-9]+', s2) if w)
 
 class BrowserPolicy:
     def __init__(self):
-        self.dangerous_keywords = ["purchase", "buy", "pay", "transfer", "delete", "remove", "password", "credential"]
-        self.sensitive_keywords = ["upload", "message", "send", "download", "submit", "post"]
-        
-        # Compile word-boundary regexes
-        self.dangerous_regex = re.compile(r'\b(?:' + '|'.join(map(re.escape, self.dangerous_keywords)) + r')\b', re.IGNORECASE)
-        self.sensitive_regex = re.compile(r'\b(?:' + '|'.join(map(re.escape, self.sensitive_keywords)) + r')\b', re.IGNORECASE)
+        self.dangerous_keywords = {"purchase", "buy", "pay", "transfer", "delete", "password", "credential"}
+        self.sensitive_keywords = {"upload", "message", "send", "download", "submit", "post"}
 
     def evaluate_js(self, script: str) -> RiskLevel:
-        if self.dangerous_regex.search(script):
+        words = extract_words(script)
+        if self.dangerous_keywords & words:
             return RiskLevel.DANGEROUS
-        if self.sensitive_regex.search(script):
+        if self.sensitive_keywords & words:
             return RiskLevel.SENSITIVE
         return RiskLevel.SAFE
         
@@ -54,16 +43,16 @@ class BrowserPolicy:
         if "input." in method_lower or "fetch." in method_lower or "network.set" in method_lower:
             return RiskLevel.SENSITIVE
         
-        # Also check params if any
         if params:
             try:
-                params_str = json.dumps(params).lower()
+                params_str = json.dumps(params)
             except TypeError:
-                params_str = str(params).lower()
+                params_str = str(params)
                 
-            if self.dangerous_regex.search(params_str):
+            words = extract_words(params_str)
+            if self.dangerous_keywords & words:
                 return RiskLevel.DANGEROUS
-            if self.sensitive_regex.search(params_str):
+            if self.sensitive_keywords & words:
                 return RiskLevel.SENSITIVE
                     
         return RiskLevel.SAFE

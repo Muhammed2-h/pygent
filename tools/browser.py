@@ -1,5 +1,6 @@
 import json
 import asyncio
+import functools
 from typing import Any, Dict, Optional, Union
 from browser.driver import BrowserDriver
 from browser.transport import BrowserTransport
@@ -100,7 +101,7 @@ async def browser_execute_js(session_id: str, tab_id: Union[int, str], script: s
     actual_risk = max(heuristic_risk, declared_level)
     
     if actual_risk == RiskLevel.DANGEROUS:
-        resp = await asyncio.to_thread(tool_ask_user, f"Action flagged as DANGEROUS. Script: {script[:100]}...", ["yes", "no"], "dangerous")
+        resp = await asyncio.to_thread(functools.partial(tool_ask_user, f"Action flagged as DANGEROUS. Script: {script[:100]}...", choices=["yes", "no"], risk="dangerous"))
         if resp.lower() not in ["y", "yes"]:
             return "Action cancelled by user."
             
@@ -130,7 +131,7 @@ async def browser_cdp(session_id: str, tab_id: Union[int, str], method: str, par
     actual_risk = max(heuristic_risk, declared_level)
     
     if actual_risk == RiskLevel.DANGEROUS:
-        resp = await asyncio.to_thread(tool_ask_user, f"Action flagged as DANGEROUS. CDP Method: {method}", ["yes", "no"], "dangerous")
+        resp = await asyncio.to_thread(functools.partial(tool_ask_user, f"Action flagged as DANGEROUS. CDP Method: {method}", choices=["yes", "no"], risk="dangerous"))
         if resp.lower() not in ["y", "yes"]:
             return "Action cancelled by user."
             
