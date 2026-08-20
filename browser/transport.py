@@ -21,11 +21,12 @@ class BrowserTransport:
         self._command_events: Dict[str, asyncio.Event] = {}
         
         self._result_queues: Dict[str, asyncio.Queue] = {}
+        self._http_sent_ids: Dict[str, Set[str]] = {}
         
         self._active_ws: Dict[str, web.WebSocketResponse] = {}
         self._tasks: Set[asyncio.Task] = set()
         
-        self._ws_app = web.Application(middlewares=[self._cors_middleware])
+        self._ws_app = web.Application()
         self._ws_app.router.add_get('/ws', self._ws_handler)
         self._ws_runner: Optional[web.AppRunner] = None
         
@@ -36,7 +37,7 @@ class BrowserTransport:
 
     @web.middleware
     async def _cors_middleware(self, request: web.Request, handler) -> web.Response:
-        # For WebSocket handshakes, we can check Origin here or just add CORS headers
+        # For HTTP endpoints
         response = await handler(request)
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
@@ -73,6 +74,8 @@ class BrowserTransport:
             self._command_events[session_id] = asyncio.Event()
         if session_id not in self._result_queues:
             self._result_queues[session_id] = asyncio.Queue()
+        if session_id not in self._http_sent_ids:
+            self._http_sent_ids[session_id] = set()
 
     def unregister_session(self, session_id: str):
         self.sessions.discard(session_id)
@@ -82,6 +85,8 @@ class BrowserTransport:
             del self._command_events[session_id]
         if session_id in self._result_queues:
             del self._result_queues[session_id]
+        if session_id in self._http_sent_ids:
+            del self._http_sent_ids[session_id]
         if session_id in self._active_ws:
             ws = self._active_ws.pop(session_id)
             task = asyncio.create_task(ws.close())
@@ -117,6 +122,16 @@ class BrowserTransport:
             ]
 
     async def _ws_handler(self, request: web.Request):
+        origin = request.headers.get("Origin")
+        if origin:
+            allowed = ["http://127.0.0.1", "http://localhost", "https://127.0.0.1", "https://localhost"]
+            if not origin.startswith("chrome-extension://") and \
+               not origin.startswith("moz-extension://") and \
+               not origin.startswith("safari-extension://") and \
+               not any(origin.startswith(a) for a in allowed):
+                logger.warning(f"Rejecting WS connection from forbidden Origin: {origin}")
+                return web.Response(status=403, text="Forbidden")
+
         session_id = request.query.get("session_id")
         if not session_id or session_id not in self.sessions:
             return web.Response(status=401, text="Invalid or missing session_id")
@@ -133,13 +148,17 @@ class BrowserTransport:
                     pending = self._pending_commands.get(session_id, [])
                     to_send = [cmd for cmd in pending if cmd["message_id"] not in sent_ids]
                     
-                    for cmd in to_send:
-                        await ws.send_json(cmd)
-                        sent_ids.add(cmd["message_id"])
-                        
-                    self._command_events[session_id].clear()
-                    # Wait for new commands, or for a re-check
-                    await self._command_events[session_id].wait()
+                    if to_send:
+                        for cmd in to_send:
+                            await ws.send_json(cmd)
+                            sent_ids.add(cmd["message_id"])
+                    else:
+                        self._command_events[session_id].clear()
+                        # Double-check after clearing the event to avoid race condition
+                        pending = self._pending_commands.get(session_id, [])
+                        to_send = [cmd for cmd in pending if cmd["message_id"] not in sent_ids]
+                        if not to_send:
+                            await self._command_events[session_id].wait()
             except asyncio.CancelledError:
                 pass
             except Exception as e:
@@ -176,16 +195,41 @@ class BrowserTransport:
             return web.Response(status=401, text="Invalid or missing session_id")
             
         pending = self._pending_commands.get(session_id, [])
-        if not pending:
+        unsent = [cmd for cmd in pending if cmd["message_id"] not in self._http_sent_ids[session_id]]
+        
+        if not unsent:
             self._command_events[session_id].clear()
-            try:
-                await asyncio.wait_for(self._command_events[session_id].wait(), timeout=30.0)
-            except asyncio.TimeoutError:
-                return web.json_response({})
+            # Double check
             pending = self._pending_commands.get(session_id, [])
+            unsent = [cmd for cmd in pending if cmd["message_id"] not in self._http_sent_ids[session_id]]
+            if not unsent:
+                try:
+                    await asyncio.wait_for(self._command_events[session_id].wait(), timeout=30.0)
+                except asyncio.TimeoutError:
+                    return web.json_response({})
+            pending = self._pending_commands.get(session_id, [])
+            unsent = [cmd for cmd in pending if cmd["message_id"] not in self._http_sent_ids[session_id]]
             
-        if pending:
-            return web.json_response(pending[0])
+        if unsent:
+            cmd = unsent[0]
+            msg_id = cmd["message_id"]
+            self._http_sent_ids[session_id].add(msg_id)
+            
+            async def timeout_unacked():
+                await asyncio.sleep(30.0)
+                if session_id in self._http_sent_ids and msg_id in self._http_sent_ids[session_id]:
+                    # Check if still pending
+                    if session_id in self._pending_commands and any(c["message_id"] == msg_id for c in self._pending_commands[session_id]):
+                        self._http_sent_ids[session_id].remove(msg_id)
+                        if session_id in self._command_events:
+                            self._command_events[session_id].set()
+
+            task = asyncio.create_task(timeout_unacked())
+            self._tasks.add(task)
+            task.add_done_callback(self._tasks.discard)
+            
+            return web.json_response(cmd)
+            
         return web.json_response({})
 
     async def _http_result_handler(self, request: web.Request):
