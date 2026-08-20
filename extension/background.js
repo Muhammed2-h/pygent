@@ -14,21 +14,21 @@ function connect() {
   socket.onmessage = async (event) => {
     try {
       const msg = JSON.parse(event.data);
-      if (msg.type === 'request') {
+      if (msg.cmd) {
         try {
           const response = await handleRequest(msg);
           if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({
-              type: 'response',
               id: msg.id,
-              payload: response
+              ok: true,
+              data: response
             }));
           }
         } catch (err) {
           if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({
-              type: 'response',
               id: msg.id,
+              ok: false,
               error: err.message
             }));
           }
@@ -77,15 +77,17 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
 });
 
 async function handleRequest(msg) {
-  const { command, args } = msg.payload || {};
+  const command = msg.cmd;
+  const args = msg.payload || {};
+  const tabId = typeof msg.tabId !== 'undefined' ? msg.tabId : args.tabId;
   
   switch (command) {
     case 'enumerate_tabs':
       return await chrome.tabs.query(args || {});
       
     case 'switch_tab':
-      if (!args || typeof args.tabId === 'undefined') throw new Error("Missing tabId");
-      const tab = await chrome.tabs.update(args.tabId, { active: true });
+      if (typeof tabId === 'undefined') throw new Error("Missing tabId");
+      const tab = await chrome.tabs.update(tabId, { active: true });
       if (tab && tab.windowId) {
         await chrome.windows.update(tab.windowId, { focused: true });
       }
@@ -95,30 +97,30 @@ async function handleRequest(msg) {
       return await chrome.tabs.create({ url: args?.url });
       
     case 'execute_script':
-      if (!args || typeof args.tabId === 'undefined') throw new Error("Missing tabId");
+      if (typeof tabId === 'undefined') throw new Error("Missing tabId");
       if (!args.files || args.files.length === 0) throw new Error("Missing files array");
       return await chrome.scripting.executeScript({
-        target: { tabId: args.tabId },
+        target: { tabId: tabId },
         files: args.files
       });
       
     case 'debugger_attach':
-      if (!args || typeof args.tabId === 'undefined') throw new Error("Missing tabId");
-      await chrome.debugger.attach({ tabId: args.tabId }, "1.3");
+      if (typeof tabId === 'undefined') throw new Error("Missing tabId");
+      await chrome.debugger.attach({ tabId: tabId }, "1.3");
       return { success: true };
       
     case 'debugger_detach':
-      if (!args || typeof args.tabId === 'undefined') throw new Error("Missing tabId");
-      await chrome.debugger.detach({ tabId: args.tabId });
+      if (typeof tabId === 'undefined') throw new Error("Missing tabId");
+      await chrome.debugger.detach({ tabId: tabId });
       return { success: true };
       
     case 'debugger_send_command':
-      if (!args || typeof args.tabId === 'undefined') throw new Error("Missing tabId");
+      if (typeof tabId === 'undefined') throw new Error("Missing tabId");
       if (!args.method) throw new Error("Missing method");
       
       return await new Promise((resolve, reject) => {
         chrome.debugger.sendCommand(
-          { tabId: args.tabId },
+          { tabId: tabId },
           args.method,
           args.commandParams || {},
           (result) => {

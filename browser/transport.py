@@ -4,6 +4,7 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional, Set
 from aiohttp import web, WSMsgType
+from browser.models import ExtensionRequest
 
 logger = logging.getLogger(__name__)
 
@@ -93,16 +94,15 @@ class BrowserTransport:
             self._tasks.add(task)
             task.add_done_callback(self._tasks.discard)
 
-    async def send_command(self, session_id: str, command: Dict[str, Any]) -> str:
+    async def send_command(self, session_id: str, request: 'ExtensionRequest') -> str:
         if session_id not in self.sessions:
             raise ValueError(f"Unknown session {session_id}")
             
-        message_id = str(uuid.uuid4())
-        cmd_wrapper = {"message_id": message_id, "command": command}
-        self._pending_commands[session_id].append(cmd_wrapper)
+        req_dict = request.model_dump(exclude_none=True)
+        self._pending_commands[session_id].append(req_dict)
         
         self._command_events[session_id].set()
-        return message_id
+        return req_dict["id"]
 
     async def receive_result(self, session_id: str, timeout: Optional[float] = None) -> Dict[str, Any]:
         if session_id not in self.sessions:
@@ -113,12 +113,12 @@ class BrowserTransport:
         else:
             return await self._result_queues[session_id].get()
 
-    def acknowledge(self, session_id: str, message_id: str):
+    def acknowledge(self, session_id: str, id: str):
         """Acknowledge a received message."""
         if session_id in self._pending_commands:
             self._pending_commands[session_id] = [
                 cmd for cmd in self._pending_commands[session_id]
-                if cmd["message_id"] != message_id
+                if cmd["id"] != id
             ]
 
     async def _ws_handler(self, request: web.Request):
@@ -146,17 +146,17 @@ class BrowserTransport:
             try:
                 while True:
                     pending = self._pending_commands.get(session_id, [])
-                    to_send = [cmd for cmd in pending if cmd["message_id"] not in sent_ids]
+                    to_send = [cmd for cmd in pending if cmd["id"] not in sent_ids]
                     
                     if to_send:
                         for cmd in to_send:
                             await ws.send_json(cmd)
-                            sent_ids.add(cmd["message_id"])
+                            sent_ids.add(cmd["id"])
                     else:
                         self._command_events[session_id].clear()
                         # Double-check after clearing the event to avoid race condition
                         pending = self._pending_commands.get(session_id, [])
-                        to_send = [cmd for cmd in pending if cmd["message_id"] not in sent_ids]
+                        to_send = [cmd for cmd in pending if cmd["id"] not in sent_ids]
                         if not to_send:
                             await self._command_events[session_id].wait()
             except asyncio.CancelledError:
@@ -195,31 +195,31 @@ class BrowserTransport:
             return web.Response(status=401, text="Invalid or missing session_id")
             
         pending = self._pending_commands.get(session_id, [])
-        unsent = [cmd for cmd in pending if cmd["message_id"] not in self._http_sent_ids[session_id]]
+        unsent = [cmd for cmd in pending if cmd["id"] not in self._http_sent_ids[session_id]]
         
         if not unsent:
             self._command_events[session_id].clear()
             # Double check
             pending = self._pending_commands.get(session_id, [])
-            unsent = [cmd for cmd in pending if cmd["message_id"] not in self._http_sent_ids[session_id]]
+            unsent = [cmd for cmd in pending if cmd["id"] not in self._http_sent_ids[session_id]]
             if not unsent:
                 try:
                     await asyncio.wait_for(self._command_events[session_id].wait(), timeout=30.0)
                 except asyncio.TimeoutError:
                     return web.json_response({})
             pending = self._pending_commands.get(session_id, [])
-            unsent = [cmd for cmd in pending if cmd["message_id"] not in self._http_sent_ids[session_id]]
+            unsent = [cmd for cmd in pending if cmd["id"] not in self._http_sent_ids[session_id]]
             
         if unsent:
             cmd = unsent[0]
-            msg_id = cmd["message_id"]
+            msg_id = cmd["id"]
             self._http_sent_ids[session_id].add(msg_id)
             
             async def timeout_unacked():
                 await asyncio.sleep(30.0)
                 if session_id in self._http_sent_ids and msg_id in self._http_sent_ids[session_id]:
                     # Check if still pending
-                    if session_id in self._pending_commands and any(c["message_id"] == msg_id for c in self._pending_commands[session_id]):
+                    if session_id in self._pending_commands and any(c["id"] == msg_id for c in self._pending_commands[session_id]):
                         self._http_sent_ids[session_id].remove(msg_id)
                         if session_id in self._command_events:
                             self._command_events[session_id].set()

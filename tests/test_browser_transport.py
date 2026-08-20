@@ -2,6 +2,7 @@ import asyncio
 import pytest
 from aiohttp import ClientSession, WSMsgType
 from browser.transport import BrowserTransport
+from browser.models import ExtensionRequest
 
 import pytest_asyncio
 
@@ -37,20 +38,21 @@ async def test_ws_communication_and_ack(transport):
                 assert msg.type == WSMsgType.TEXT
                 data = msg.json()
                 
-                assert "message_id" in data
-                assert data["command"] == {"cmd": "test"}
-                received_message_id = data["message_id"]
+                assert "id" in data
+                assert data["cmd"] == "test"
+                received_message_id = data["id"]
                 message_id_event.set()
                 
                 # Send result
-                await ws.send_json({"res": "ok"})
+                await ws.send_json({"id": data["id"], "ok": True, "data": {"res": "ok"}})
                 
     task = asyncio.create_task(client_task())
     
     # Wait a bit for connection
     await asyncio.sleep(0.1)
     
-    msg_id = await transport.send_command("sess1", {"cmd": "test"})
+    req = ExtensionRequest(cmd="test")
+    msg_id = await transport.send_command("sess1", req)
     
     # Wait for the client to receive it
     await asyncio.wait_for(message_id_event.wait(), timeout=1.0)
@@ -64,7 +66,7 @@ async def test_ws_communication_and_ack(transport):
     assert len(transport._pending_commands["sess1"]) == 0
     
     result = await transport.receive_result("sess1", timeout=1.0)
-    assert result == {"res": "ok"}
+    assert result == {"id": msg_id, "ok": True, "data": {"res": "ok"}}
     
     await task
 
@@ -82,19 +84,20 @@ async def test_http_long_poll_and_ack(transport):
             async with session.get('http://127.0.0.1:18766/poll?session_id=sess2') as resp:
                 assert resp.status == 200
                 data = await resp.json()
-                assert "message_id" in data
-                assert data["command"] == {"cmd": "test_http"}
-                received_msg_id = data["message_id"]
+                assert "id" in data
+                assert data["cmd"] == "test_http"
+                received_msg_id = data["id"]
                 msg_id_event.set()
                 
             # Send result
-            async with session.post('http://127.0.0.1:18766/result?session_id=sess2', json={"res": "ok_http"}) as resp:
+            async with session.post('http://127.0.0.1:18766/result?session_id=sess2', json={"id": data["id"], "ok": True, "data": {"res": "ok_http"}}) as resp:
                 assert resp.status == 200
                 
     task = asyncio.create_task(client_task())
     
     # Send command (will queue and then be picked up by poll)
-    msg_id = await transport.send_command("sess2", {"cmd": "test_http"})
+    req = ExtensionRequest(cmd="test_http")
+    msg_id = await transport.send_command("sess2", req)
     
     await asyncio.wait_for(msg_id_event.wait(), timeout=1.0)
     assert received_msg_id == msg_id
@@ -105,7 +108,7 @@ async def test_http_long_poll_and_ack(transport):
     assert len(transport._pending_commands["sess2"]) == 0
     
     result = await transport.receive_result("sess2", timeout=1.0)
-    assert result == {"res": "ok_http"}
+    assert result == {"id": msg_id, "ok": True, "data": {"res": "ok_http"}}
     
     await task
 
