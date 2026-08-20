@@ -96,6 +96,97 @@ async function handleRequest(msg) {
     case 'create_tab':
       return await chrome.tabs.create({ url: args?.url });
       
+    
+    case 'execute':
+      if (typeof tabId === 'undefined') throw new Error("Missing tabId");
+      if (!args.script) throw new Error("Missing script");
+
+      const wrapperCode = `
+      (async () => {
+          function serializeNode(node) {
+              if (!node) return null;
+              if (node.nodeType === 3) return { nodeType: 3, nodeValue: node.nodeValue };
+              if (node.nodeType !== 1) return { nodeType: node.nodeType };
+              let obj = {
+                  nodeType: 1,
+                  tagName: node.tagName.toLowerCase(),
+                  attributes: {},
+                  textContent: node.textContent
+              };
+              if (node.attributes) {
+                  for (let attr of node.attributes) {
+                      obj.attributes[attr.name] = attr.value;
+                  }
+              }
+              return obj;
+          }
+          
+          function serialize(val) {
+              if (val instanceof Node) return { __pygent_type: 'node', ...serializeNode(val) };
+              if (val instanceof NodeList || val instanceof HTMLCollection) {
+                  return { __pygent_type: 'nodelist', length: val.length, items: Array.from(val).map(serializeNode) };
+              }
+              return val;
+          }
+
+          try {
+              const result = await (async function() {
+                  ${args.script}
+              })();
+              return serialize(result);
+          } catch (err) {
+              return { __pygent_error: true, message: err.message, stack: err.stack };
+          }
+      })()
+      `;
+
+      return await new Promise((resolve, reject) => {
+          chrome.debugger.getTargets((targets) => {
+              const target = targets.find(t => t.tabId === tabId && t.attached);
+              const needsDetach = !target;
+              
+              const run = () => {
+                  chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+                      expression: wrapperCode,
+                      awaitPromise: true,
+                      returnByValue: true,
+                      userGesture: true
+                  }, (res) => {
+                      const complete = () => {
+                          if (chrome.runtime.lastError) {
+                              reject(new Error(chrome.runtime.lastError.message));
+                          } else if (res && res.exceptionDetails) {
+                              resolve({
+                                  __pygent_error: true,
+                                  message: res.exceptionDetails.exception?.description || res.exceptionDetails.text,
+                                  stack: null
+                              });
+                          } else {
+                              resolve(res.result.value);
+                          }
+                      };
+                      
+                      if (needsDetach) {
+                          chrome.debugger.detach({ tabId }, complete);
+                      } else {
+                          complete();
+                      }
+                  });
+              };
+              
+              if (needsDetach) {
+                  chrome.debugger.attach({ tabId }, "1.3", () => {
+                      if (chrome.runtime.lastError) {
+                          return reject(new Error(chrome.runtime.lastError.message));
+                      }
+                      run();
+                  });
+              } else {
+                  run();
+              }
+          });
+      });
+
     case 'execute_script':
       if (typeof tabId === 'undefined') throw new Error("Missing tabId");
       if (!args.files || args.files.length === 0) throw new Error("Missing files array");
