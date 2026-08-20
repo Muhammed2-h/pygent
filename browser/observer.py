@@ -248,6 +248,31 @@ class BrowserObserver:
             
         # JS script to extract simplified DOM, ignoring hidden elements
         js_script = """
+        const refs = {};
+        let ref_counter = 1;
+        
+        function getPath(el) {
+            if (!el || el.nodeType !== Node.ELEMENT_NODE) return '';
+            let path = [];
+            while (el && el.nodeType === Node.ELEMENT_NODE) {
+                let sel = el.nodeName.toLowerCase();
+                if (el.id) {
+                    sel += '#' + el.id;
+                    path.unshift(sel);
+                    break;
+                } else {
+                    let sib = el, nth = 1;
+                    while (sib = sib.previousElementSibling) {
+                        if (sib.nodeName.toLowerCase() == sel) nth++;
+                    }
+                    if (nth != 1) sel += ":nth-of-type("+nth+")";
+                }
+                path.unshift(sel);
+                el = el.parentNode;
+            }
+            return path.join(' > ');
+        }
+
         function getCleanHTML(node, seenText = new Set()) {
             if (node.nodeType === Node.TEXT_NODE) {
                 const txt = node.textContent.trim();
@@ -282,13 +307,22 @@ class BrowserObserver:
             }
             
             // Remove irrelevant containers (e.g. div/span with no attributes and only one valid child or just text)
-            // Wait, we want to retain forms, labels, structure. Let's just remove div/span if they have NO attributes and 1 child element.
             const hasAttributes = node.attributes.length > 0;
             if (['div', 'span'].includes(tag) && !hasAttributes && validChildren === 1 && childrenHtml.startsWith('<')) {
                 return childrenHtml;
             }
             
-            let html = '<' + tag;
+            let html = '';
+            
+            // Add reference to interactive elements
+            const isInteractive = ['a', 'button', 'input', 'select', 'textarea', 'form', 'label'].includes(tag) || node.onclick != null || node.getAttribute('role') === 'button';
+            if (isInteractive) {
+                let refId = ref_counter++;
+                refs[refId] = getPath(node);
+                html += `\\n[element:${refId}]\\n`;
+            }
+            
+            html += '<' + tag;
             const allowedAttrs = ['id', 'class', 'href', 'src', 'alt', 'type', 'name', 'value', 'placeholder', 'role', 'aria-label'];
             for (let i = 0; i < node.attributes.length; i++) {
                 const attr = node.attributes[i];
@@ -310,20 +344,31 @@ class BrowserObserver:
             
             return html;
         }
-        return getCleanHTML(document.body);
+        const html = getCleanHTML(document.body);
+        return { html: html, refs: refs };
         """
         
         try:
             resp = await self.driver.execute_js(session_id, tab_id, js_script)
-            html_content = resp.get("result", "")
+            result = resp.get("result")
+            if isinstance(result, dict):
+                html_content = result.get("html", "")
+                element_references = result.get("refs", {})
+            elif isinstance(result, str):
+                html_content = result
+                element_references = {}
+            else:
+                html_content = ""
+                element_references = {}
         except Exception:
             html_content = ""
+            element_references = {}
             
         if text_only:
             text = self.extract_text(html_content)
             if max_chars > 0 and len(text) > max_chars:
                 text = text[:max_chars]
-            return {"text": text, "tabs": tabs}
+            return {"text": text, "tabs": tabs, "element_references": element_references}
             
         # JS already simplifies the HTML, so we don't need to run simplify_html again, 
         # but we do need to truncate it if requested.
@@ -336,5 +381,7 @@ class BrowserObserver:
         return {
             "html": simplified,
             "interactive_elements": interactives,
-            "tabs": tabs
+            "tabs": tabs,
+            "element_references": element_references
         }
+
