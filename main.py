@@ -22,10 +22,6 @@ def main():
         print("Checking Configuration...")
         if config.openai_api_key:
             print("OpenAI Key: Present")
-        if config.anthropic_api_key:
-            print("Anthropic Key: Present")
-        if config.gemini_api_key:
-            print("Gemini Key: Present")
         print("Checking Database...")
         store = MemoryStore(db_path)
         store.close()
