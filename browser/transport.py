@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import Any, Dict, List, Optional, Set
 from aiohttp import web, WSMsgType
-from browser.models import ExtensionRequest
+from browser.models import ExtensionRequest, ExtensionResponse
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class BrowserTransport:
             self._tasks.add(task)
             task.add_done_callback(self._tasks.discard)
 
-    async def send_command(self, session_id: str, request: 'ExtensionRequest') -> str:
+    async def send_command(self, session_id: str, request: ExtensionRequest) -> str:
         if session_id not in self.sessions:
             raise ValueError(f"Unknown session {session_id}")
             
@@ -104,7 +104,7 @@ class BrowserTransport:
         self._command_events[session_id].set()
         return req_dict["id"]
 
-    async def receive_result(self, session_id: str, timeout: Optional[float] = None) -> Dict[str, Any]:
+    async def receive_result(self, session_id: str, timeout: Optional[float] = None) -> ExtensionResponse:
         if session_id not in self.sessions:
             raise ValueError(f"Unknown session {session_id}")
         
@@ -113,12 +113,12 @@ class BrowserTransport:
         else:
             return await self._result_queues[session_id].get()
 
-    def acknowledge(self, session_id: str, id: str):
+    def acknowledge(self, session_id: str, msg_id: str):
         """Acknowledge a received message."""
         if session_id in self._pending_commands:
             self._pending_commands[session_id] = [
                 cmd for cmd in self._pending_commands[session_id]
-                if cmd["id"] != id
+                if cmd["id"] != msg_id
             ]
 
     async def _ws_handler(self, request: web.Request):
@@ -173,7 +173,8 @@ class BrowserTransport:
                 if msg.type == WSMsgType.TEXT:
                     try:
                         data = json.loads(msg.data)
-                        await self._result_queues[session_id].put(data)
+                        resp = ExtensionResponse.model_validate(data)
+                        await self._result_queues[session_id].put(resp)
                     except Exception as e:
                         logger.error(f"Failed to parse WS message: {e}")
                 elif msg.type == WSMsgType.ERROR:
@@ -243,7 +244,8 @@ class BrowserTransport:
             
         try:
             data = await request.json()
-            await self._result_queues[session_id].put(data)
+            resp = ExtensionResponse.model_validate(data)
+            await self._result_queues[session_id].put(resp)
             return web.json_response({"status": "ok"})
         except Exception as e:
             logger.error(f"Failed to parse HTTP result: {e}")
