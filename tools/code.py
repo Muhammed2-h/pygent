@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 from typing import Literal, Optional
 
 from .registry import tool
@@ -33,19 +34,23 @@ def execute_code(
     
     ext = ext_map.get(language, ".txt")
     
-    with tempfile.NamedTemporaryFile(suffix=ext, mode='w', encoding='utf-8', delete=False) as f:
-        f.write(code)
-        temp_file_path = f.name
+    try:
+        with tempfile.NamedTemporaryFile(suffix=ext, mode='w', encoding='utf-8', delete=False) as f:
+            f.write(code)
+            temp_file_path = f.name
+    except Exception as e:
+        return json.dumps({"exit_code": -1, "stdout": "", "stderr": "", "error": str(e)})
 
     cmd = []
+    env = os.environ.copy()
     if language == "python":
-        cmd = [sys.executable, temp_file_path]
+        env["PYTHONUNBUFFERED"] = "1"
+        cmd = [sys.executable, "-u", temp_file_path]
     elif language == "bash":
         cmd = ["bash", temp_file_path]
     elif language == "powershell":
         cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", temp_file_path]
     else:
-        # Fallback or unknown
         cmd = [language, temp_file_path]
     
     result_dict = {
@@ -54,46 +59,79 @@ def execute_code(
         "stderr": "",
         "error": None
     }
-    
-    out_f = tempfile.NamedTemporaryFile(mode='w+', encoding='utf-8', delete=False)
-    err_f = tempfile.NamedTemporaryFile(mode='w+', encoding='utf-8', delete=False)
-    
+
+    is_posix = (os.name == 'posix')
+
+    def read_stream(stream, limit, key):
+        output = bytearray()
+        truncated = False
+        try:
+            while len(output) < limit:
+                chunk = stream.read(min(limit - len(output) + 1, 4096))
+                if not chunk:
+                    break
+                if len(output) + len(chunk) > limit:
+                    output.extend(chunk[:limit - len(output)])
+                    truncated = True
+                    break
+                output.extend(chunk)
+        except Exception:
+            pass
+            
+        result = output.decode("utf-8", errors="replace")
+        if truncated:
+            result += f"\n...[{key} truncated]"
+        result_dict[key] = result
+
+    kwargs = {}
+    if is_posix:
+        kwargs["start_new_session"] = True
+    elif sys.platform == "win32":
+        if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
+    process = None
     try:
         process = subprocess.Popen(
             cmd,
             cwd=cwd,
-            stdout=out_f,
-            stderr=err_f,
-            text=True
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=env,
+            **kwargs
         )
+        
+        stdout_thread = threading.Thread(target=read_stream, args=(process.stdout, stdout_limit, "stdout"))
+        stderr_thread = threading.Thread(target=read_stream, args=(process.stderr, stderr_limit, "stderr"))
+        stdout_thread.start()
+        stderr_thread.start()
         
         try:
             process.wait(timeout=timeout)
             result_dict["exit_code"] = process.returncode
         except subprocess.TimeoutExpired:
-            process.kill()
+            if is_posix:
+                try:
+                    import signal
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except Exception:
+                    process.kill()
+            else:
+                process.kill()
             process.wait()
             result_dict["exit_code"] = process.returncode
             result_dict["error"] = f"Execution timed out after {timeout} seconds."
             
-        out_f.seek(0)
-        result_dict["stdout"] = out_f.read(stdout_limit)
-        if len(out_f.read(1)) > 0:
-            result_dict["stdout"] += "\n...[stdout truncated]"
-            
-        err_f.seek(0)
-        result_dict["stderr"] = err_f.read(stderr_limit)
-        if len(err_f.read(1)) > 0:
-            result_dict["stderr"] += "\n...[stderr truncated]"
+        stdout_thread.join(timeout=1)
+        stderr_thread.join(timeout=1)
 
     except Exception as e:
         result_dict["error"] = str(e)
     finally:
-        out_f.close()
-        err_f.close()
+        if process:
+            if process.stdout: process.stdout.close()
+            if process.stderr: process.stderr.close()
         try:
-            os.remove(out_f.name)
-            os.remove(err_f.name)
             os.remove(temp_file_path)
         except OSError:
             pass
