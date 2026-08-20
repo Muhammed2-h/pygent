@@ -97,7 +97,7 @@ async function handleRequest(msg) {
       return await chrome.tabs.create({ url: args?.url });
       
     
-    case 'execute':
+    case 'execute': {
       if (typeof tabId === 'undefined') throw new Error("Missing tabId");
       if (!args.script) throw new Error("Missing script");
 
@@ -152,60 +152,88 @@ async function handleRequest(msg) {
       `;
 
       return await new Promise((resolve, reject) => {
-          chrome.debugger.getTargets((targets) => {
-              if (chrome.runtime.lastError) {
-                  return reject(new Error(chrome.runtime.lastError.message));
-              }
-              
-              const target = targets.find(t => t.tabId === tabId && t.attached);
-              const needsDetach = !target;
-              
-              const run = () => {
-                  chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
-                      expression: wrapperCode,
-                      awaitPromise: true,
-                      returnByValue: true,
-                      userGesture: true
-                  }, (res) => {
-                      // Capture error synchronously
-                      const err = chrome.runtime.lastError ? chrome.runtime.lastError.message : null;
-                      
-                      const complete = () => {
-                          if (err) {
-                              reject(new Error(err));
-                          } else if (res && res.exceptionDetails) {
-                              resolve({
-                                  __pygent_error: true,
-                                  message: res.exceptionDetails.exception?.description || res.exceptionDetails.text,
-                                  stack: null
-                              });
-                          } else if (res && res.result) {
-                              resolve(res.result.value);
+          const runCDP = () => {
+              chrome.debugger.getTargets((targets) => {
+                  if (chrome.runtime.lastError) {
+                      return resolve({ __pygent_error: true, message: chrome.runtime.lastError.message });
+                  }
+                  
+                  const target = targets.find(t => t.tabId === tabId && t.attached);
+                  const needsDetach = !target;
+                  
+                  const run = () => {
+                      chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
+                          expression: wrapperCode,
+                          awaitPromise: true,
+                          returnByValue: true,
+                          userGesture: true
+                      }, (res) => {
+                          const err = chrome.runtime.lastError ? chrome.runtime.lastError.message : null;
+                          
+                          const complete = () => {
+                              if (err) {
+                                  resolve({ __pygent_error: true, message: err });
+                              } else if (res && res.exceptionDetails) {
+                                  resolve({
+                                      __pygent_error: true,
+                                      message: res.exceptionDetails.exception?.description || res.exceptionDetails.text,
+                                      stack: null
+                                  });
+                              } else if (res && res.result) {
+                                  resolve(res.result.value);
+                              } else {
+                                  resolve(null);
+                              }
+                          };
+                          
+                          if (needsDetach) {
+                              chrome.debugger.detach({ tabId }, complete);
                           } else {
-                              resolve(null);
+                              complete();
                           }
-                      };
-                      
-                      if (needsDetach) {
-                          chrome.debugger.detach({ tabId }, complete);
-                      } else {
-                          complete();
-                      }
-                  });
-              };
-              
-              if (needsDetach) {
-                  chrome.debugger.attach({ tabId }, "1.3", () => {
-                      if (chrome.runtime.lastError) {
-                          return reject(new Error(chrome.runtime.lastError.message));
-                      }
+                      });
+                  };
+                  
+                  if (needsDetach) {
+                      chrome.debugger.attach({ tabId }, "1.3", () => {
+                          if (chrome.runtime.lastError) {
+                              return resolve({ __pygent_error: true, message: chrome.runtime.lastError.message });
+                          }
+                          run();
+                      });
+                  } else {
                       run();
-                  });
+                  }
+              });
+          };
+
+          chrome.scripting.executeScript({
+              target: { tabId },
+              world: "MAIN",
+              func: (code) => {
+                  try {
+                      return eval(code);
+                  } catch (err) {
+                      return { __pygent_fallback_cdp: true, message: err.toString() };
+                  }
+              },
+              args: [wrapperCode]
+          }, (injectionResults) => {
+              if (chrome.runtime.lastError) {
+                  runCDP();
+              } else if (!injectionResults || injectionResults.length === 0) {
+                  runCDP();
               } else {
-                  run();
+                  const res = injectionResults[0].result;
+                  if (res && typeof res === 'object' && res.__pygent_fallback_cdp) {
+                      runCDP();
+                  } else {
+                      resolve(res);
+                  }
               }
           });
       });
+    }
 
     case 'execute_script':
       if (typeof tabId === 'undefined') throw new Error("Missing tabId");
