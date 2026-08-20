@@ -1,6 +1,7 @@
 import argparse
 import os
-from config import load_config
+from pathlib import Path
+from config import load_config, setup_data_directory
 from providers.openai_provider import OpenAIProvider
 from tools import ToolRegistry
 from agent import Agent
@@ -16,20 +17,24 @@ def main():
     args = parser.parse_args()
 
     config = load_config()
-    db_path = os.path.join(config.data_dir, "memory", "memory.db")
+    setup_data_directory(config)
+    
+    base_dir = Path(config.data_dir)
+    db_path = base_dir / "memory" / "memory.db"
+    skills_dir = base_dir / "skills"
 
     if args.check:
         print("Checking Configuration...")
         if config.openai_api_key:
             print("OpenAI Key: Present")
         print("Checking Database...")
-        store = MemoryStore(db_path)
+        store = MemoryStore(str(db_path), skills_dir=skills_dir)
         store.close()
         print(f"Database OK at {db_path}")
         return
 
     if args.memory_demo:
-        store = MemoryStore(db_path)
+        store = MemoryStore(str(db_path), skills_dir=skills_dir)
         svc = MemoryService(store, PrivacyFilter())
         svc.add("The user loves Python and SQLite.")
         print(svc.get_context_for("What does the user love?"))
@@ -42,7 +47,7 @@ def main():
 
     provider = OpenAIProvider(config.openai_api_key)
     tools = ToolRegistry()
-    memory_store = MemoryStore(db_path)
+    memory_store = MemoryStore(str(db_path), skills_dir=skills_dir)
     memory_svc = MemoryService(memory_store, PrivacyFilter())
 
     agent = Agent(provider, tools, config.default_model, config.max_agent_steps)

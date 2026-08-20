@@ -4,7 +4,7 @@ import pathlib
 import tempfile
 
 class MemoryStore:
-    def __init__(self, db_path: str = "memory.db"):
+    def __init__(self, db_path: str = "memory.db", skills_dir: pathlib.Path | str | None = None):
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self.db_path = pathlib.Path(db_path)
@@ -13,8 +13,8 @@ class MemoryStore:
             self.skills_dir = pathlib.Path(self._temp_dir.name) / "skills"
         else:
             self._temp_dir = None
-            if self.db_path.parent.name == "memory":
-                self.skills_dir = self.db_path.parent.parent / "skills"
+            if skills_dir:
+                self.skills_dir = pathlib.Path(skills_dir)
             else:
                 self.skills_dir = self.db_path.parent / "skills"
         self._init_db()

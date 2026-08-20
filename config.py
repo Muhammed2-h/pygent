@@ -59,10 +59,6 @@ def load_config() -> Config:
         data_dir_raw = "~/.pygent"
     data_dir = str(Path(data_dir_raw).expanduser())
 
-    base_dir = Path(data_dir)
-    for subdir in ["memory", "skills", "sessions", "logs", "browser", "temp"]:
-        (base_dir / subdir).mkdir(parents=True, exist_ok=True)
-
     return Config(
         openai_api_key=os.getenv("OPENAI_API_KEY") or None,
         default_model=os.getenv("DEFAULT_MODEL", "gpt-4o"),
@@ -78,3 +74,10 @@ def load_config() -> Config:
 
         memory_enabled=_parse_bool(os.getenv("PYGENT_MEMORY_ENABLED", ""), True),
     )
+
+def setup_data_directory(config: Config) -> None:
+    if not config.data_dir:
+        return
+    base_dir = Path(config.data_dir)
+    for subdir in ["memory", "skills", "sessions", "logs", "browser", "temp"]:
+        (base_dir / subdir).mkdir(parents=True, exist_ok=True)
