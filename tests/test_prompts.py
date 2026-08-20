@@ -64,3 +64,13 @@ def test_prompt_builder_missing_files(tmp_path):
     builder = PromptBuilder(prompts_dir=str(tmp_path))
     result = builder.build(tools=registry)
     assert result == ""
+
+def test_real_system_prompt_exists():
+    from prompts.builder import PromptBuilder
+    builder = PromptBuilder() # default dir
+    system_path = builder.prompts_dir / "system.md"
+    assert system_path.exists()
+    content = system_path.read_text()
+    assert "Identity" in content
+    assert "Tool Policy" in content
+    assert "Safety Policy" in content
