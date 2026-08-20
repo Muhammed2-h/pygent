@@ -33,25 +33,8 @@ def execute_code(
     }
     
     ext = ext_map.get(language, ".txt")
-    
-    try:
-        with tempfile.NamedTemporaryFile(suffix=ext, mode='w', encoding='utf-8', delete=False) as f:
-            f.write(code)
-            temp_file_path = f.name
-    except Exception as e:
-        return json.dumps({"exit_code": -1, "stdout": "", "stderr": "", "error": str(e)})
-
-    cmd = []
-    env = os.environ.copy()
-    if language == "python":
-        env["PYTHONUNBUFFERED"] = "1"
-        cmd = [sys.executable, "-u", temp_file_path]
-    elif language == "bash":
-        cmd = ["bash", temp_file_path]
-    elif language == "powershell":
-        cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", temp_file_path]
-    else:
-        cmd = [language, temp_file_path]
+    temp_file_path = None
+    process = None
     
     result_dict = {
         "exit_code": -1,
@@ -60,21 +43,20 @@ def execute_code(
         "error": None
     }
 
-    is_posix = (os.name == 'posix')
-
     def read_stream(stream, limit, key):
         output = bytearray()
         truncated = False
         try:
-            while len(output) < limit:
-                chunk = stream.read(min(limit - len(output) + 1, 4096))
+            while True:
+                chunk = stream.read(4096)
                 if not chunk:
                     break
-                if len(output) + len(chunk) > limit:
-                    output.extend(chunk[:limit - len(output)])
-                    truncated = True
-                    break
-                output.extend(chunk)
+                if not truncated:
+                    if len(output) + len(chunk) > limit:
+                        output.extend(chunk[:limit - len(output)])
+                        truncated = True
+                    else:
+                        output.extend(chunk)
         except Exception:
             pass
             
@@ -83,15 +65,32 @@ def execute_code(
             result += f"\n...[{key} truncated]"
         result_dict[key] = result
 
-    kwargs = {}
-    if is_posix:
-        kwargs["start_new_session"] = True
-    elif sys.platform == "win32":
-        if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
-            kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
-
-    process = None
     try:
+        f = tempfile.NamedTemporaryFile(suffix=ext, mode='w', encoding='utf-8', delete=False)
+        temp_file_path = f.name
+        f.write(code)
+        f.close()
+
+        cmd = []
+        env = os.environ.copy()
+        if language == "python":
+            env["PYTHONUNBUFFERED"] = "1"
+            cmd = [sys.executable, "-u", temp_file_path]
+        elif language == "bash":
+            cmd = ["bash", temp_file_path]
+        elif language == "powershell":
+            cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", temp_file_path]
+        else:
+            cmd = [language, temp_file_path]
+        
+        is_posix = (os.name == 'posix')
+        kwargs = {}
+        if is_posix:
+            kwargs["start_new_session"] = True
+        elif sys.platform == "win32":
+            if hasattr(subprocess, "CREATE_NEW_PROCESS_GROUP"):
+                kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+
         process = subprocess.Popen(
             cmd,
             cwd=cwd,
@@ -126,14 +125,16 @@ def execute_code(
         stderr_thread.join(timeout=1)
 
     except Exception as e:
-        result_dict["error"] = str(e)
+        if not result_dict["error"]:
+            result_dict["error"] = str(e)
     finally:
         if process:
             if process.stdout: process.stdout.close()
             if process.stderr: process.stderr.close()
-        try:
-            os.remove(temp_file_path)
-        except OSError:
-            pass
+        if temp_file_path:
+            try:
+                os.remove(temp_file_path)
+            except OSError:
+                pass
         
     return json.dumps(result_dict)
