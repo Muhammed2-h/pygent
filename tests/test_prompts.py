@@ -74,3 +74,19 @@ def test_real_system_prompt_exists():
     assert "Identity" in content
     assert "Tool Policy" in content
     assert "Safety Policy" in content
+
+def test_real_browser_prompt_exists():
+    from prompts.builder import PromptBuilder
+    builder = PromptBuilder()
+    browser_path = builder.prompts_dir / "browser.md"
+    assert browser_path.exists()
+    content = browser_path.read_text().lower()
+    assert "observe before acting" in content
+    assert "prefer precise js" in content
+    assert "avoid unnecessary dom dumps" in content
+    assert "never guess selectors" in content
+    assert "separate navigation" in content
+    assert "verify actions" in content
+    assert "use cdp for difficult cases" in content
+    assert "switch strategies" in content
+    assert "ask user when blocked" in content
