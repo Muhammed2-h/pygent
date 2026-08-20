@@ -66,10 +66,9 @@ def execute_code(
         result_dict[key] = result
 
     try:
-        f = tempfile.NamedTemporaryFile(suffix=ext, mode='w', encoding='utf-8', delete=False)
-        temp_file_path = f.name
-        f.write(code)
-        f.close()
+        with tempfile.NamedTemporaryFile(suffix=ext, mode='w', encoding='utf-8', delete=False) as f:
+            temp_file_path = f.name
+            f.write(code)
 
         cmd = []
         env = os.environ.copy()
