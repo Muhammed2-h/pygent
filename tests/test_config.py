@@ -12,8 +12,13 @@ class TestParseBool:
             assert _parse_bool(val, False) is True
 
     def test_false_values(self):
-        for val in ("0", "false", "no", "nope", "random"):
+        for val in ("0", "false", "False", "FALSE", "no", "NO", " false "):
             assert _parse_bool(val, True) is False
+
+    def test_unrecognized_returns_default(self):
+        assert _parse_bool("nope", True) is True
+        assert _parse_bool("random", False) is False
+        assert _parse_bool("maybe", True) is True
 
     def test_empty_returns_default(self):
         assert _parse_bool("", True) is True

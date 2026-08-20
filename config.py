@@ -5,11 +5,20 @@ from pathlib import Path
 from typing import Optional
 
 
-def _parse_bool(value: str, default: bool) -> bool:
-    """Parse a boolean from an environment variable string."""
+def _parse_bool(value: Optional[str], default: bool) -> bool:
+    """Parse a boolean from an environment variable string.
+
+    Returns *default* when *value* is empty/None or not a recognised
+    boolean string (mirrors ``_parse_int`` fallback behaviour).
+    """
     if not value or not value.strip():
         return default
-    return value.strip().lower() in ("1", "true", "yes")
+    normalised = value.strip().lower()
+    if normalised in ("1", "true", "yes"):
+        return True
+    if normalised in ("0", "false", "no"):
+        return False
+    return default
 
 
 def _parse_int(value: Optional[str], default: int) -> int:
