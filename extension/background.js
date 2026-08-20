@@ -303,6 +303,55 @@ async function handleRequest(msg) {
       if (typeof tabId === 'undefined') throw new Error("Missing tabId");
       await chrome.debugger.detach({ tabId: tabId });
       return { success: true };
+    case 'batch': {
+      if (typeof tabId === 'undefined') throw new Error("Missing tabId");
+      if (!args.commands || !Array.isArray(args.commands)) throw new Error("Missing commands array");
+
+      const targets = await new Promise(r => chrome.debugger.getTargets(r));
+      const target = targets.find(t => t.tabId === tabId && t.attached);
+      const needsDetach = !target;
+
+      if (needsDetach) {
+          await new Promise((resolve, reject) => {
+              chrome.debugger.attach({ tabId }, "1.3", () => {
+                  if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+                  else resolve();
+              });
+          });
+      }
+
+      const results = [];
+      try {
+          for (let i = 0; i < args.commands.length; i++) {
+              const cmd = args.commands[i];
+              if (!cmd.method) {
+                  throw new Error(`Command at index ${i} is missing 'method'`);
+              }
+              const res = await new Promise((resolve, reject) => {
+                  chrome.debugger.sendCommand(
+                      { tabId },
+                      cmd.method,
+                      cmd.params || {},
+                      (result) => {
+                          if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+                          else resolve(result);
+                      }
+                  );
+              });
+              results.push(res);
+          }
+      } finally {
+          if (needsDetach) {
+              await new Promise(r => {
+                  chrome.debugger.detach({ tabId }, () => {
+                      const _ = chrome.runtime.lastError;
+                      r();
+                  });
+              });
+          }
+      }
+      return results;
+    }
       
     case 'debugger_send_command':
       if (typeof tabId === 'undefined') throw new Error("Missing tabId");

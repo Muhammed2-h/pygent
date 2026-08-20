@@ -57,6 +57,38 @@ class CDPClient:
             raise RuntimeError(f"CDP command '{method}' failed: {resp.error}")
         return resp.data
 
+    async def send_batch(self, session_id: str, tab_id: int, commands: list[Dict[str, Any]], timeout: Optional[float] = None) -> list[Any]:
+        """
+        Send a batch of CDP commands and wait for their responses.
+        
+        Args:
+            session_id: The browser session ID.
+            tab_id: The ID of the tab to execute the commands in.
+            commands: List of dicts, each with a 'method' key and optionally 'params'.
+            timeout: Optional timeout for the batch execution.
+            
+        Returns:
+            A list of responses corresponding to the commands.
+        """
+        if not self.transport:
+            raise RuntimeError("Transport not configured")
+            
+        req = ExtensionRequest(
+            cmd="batch",
+            tabId=tab_id,
+            payload={
+                "commands": commands
+            }
+        )
+        msg_id = await self.transport.send_command(session_id, req)
+        
+        effective_timeout = timeout if timeout is not None else self.default_timeout
+        resp = await self.transport.receive_result(session_id, msg_id, timeout=effective_timeout)
+        self.transport.acknowledge(session_id, msg_id)
+        if not resp.ok:
+            raise RuntimeError(f"CDP batch command failed: {resp.error}")
+        return resp.data
+
     async def runtime_evaluate(self, session_id: str, tab_id: int, expression: str, return_by_value: bool = True, timeout: Optional[float] = None) -> Any:
         """
         Evaluate JavaScript expression in the tab.

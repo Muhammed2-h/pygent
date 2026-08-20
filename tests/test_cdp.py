@@ -17,6 +17,8 @@ class DummyTransport:
         req = self.sent_requests[-1]
         if req.cmd == "debugger_send_command":
             return ExtensionResponse(id=req.id, ok=True, data={"result": "ok"})
+        if req.cmd == "batch":
+            return ExtensionResponse(id=req.id, ok=True, data=[{"result": "ok"} for _ in req.payload.get("commands", [])])
         return ExtensionResponse(id=req.id, ok=False, error="Unknown cmd")
         
     def acknowledge(self, session_id, msg_id):
@@ -74,3 +76,25 @@ async def test_cdp_client_methods():
     await client.input_dispatch_key_event("sess1", 123, "keyDown", key="Enter")
     assert transport.sent_requests[-1].payload["method"] == "Input.dispatchKeyEvent"
     assert transport.sent_requests[-1].payload["commandParams"]["key"] == "Enter"
+
+@pytest.mark.asyncio
+async def test_cdp_batch_command():
+    transport = DummyTransport()
+    client = CDPClient(transport=transport)
+    
+    commands = [
+        {"method": "Runtime.evaluate", "params": {"expression": "1+1"}},
+        {"method": "DOM.getDocument"}
+    ]
+    
+    res = await client.send_batch("sess1", 123, commands)
+    assert len(res) == 2
+    assert res[0] == {"result": "ok"}
+    assert res[1] == {"result": "ok"}
+    
+    last_req = transport.sent_requests[-1]
+    assert last_req.cmd == "batch"
+    assert last_req.tabId == 123
+    assert len(last_req.payload["commands"]) == 2
+    assert last_req.payload["commands"][0]["method"] == "Runtime.evaluate"
+    assert last_req.payload["commands"][1]["method"] == "DOM.getDocument"
