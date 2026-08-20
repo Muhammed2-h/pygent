@@ -7,6 +7,7 @@ Provides the main driver interface for interacting with the browser subsystem.
 from typing import Any, Optional
 from browser.transport import BrowserTransport
 from browser.models import ExtensionRequest
+from browser.cdp import CDPClient
 import asyncio
 
 class BrowserDriver:
@@ -94,4 +95,44 @@ class BrowserDriver:
             "result": result_data,
             "navigated": navigated,
             "new_tabs": new_tabs
+        }
+
+    async def browser_screenshot(self, session_id: str, tab_id: int) -> dict:
+        """
+        Capture a screenshot of the current page.
+        Returns a dictionary with base64, mime_type, width, and height.
+        """
+        if not self.transport:
+            raise RuntimeError("Transport not configured")
+            
+        cdp = CDPClient(self.transport)
+        
+        # Get viewport dimensions
+        eval_resp = await cdp.runtime_evaluate(
+            session_id,
+            tab_id,
+            "({width: window.innerWidth, height: window.innerHeight})"
+        )
+        
+        width = 800
+        height = 600
+        
+        if isinstance(eval_resp, dict) and "result" in eval_resp:
+            result_val = eval_resp["result"].get("value", {})
+            if isinstance(result_val, dict):
+                width = result_val.get("width", width)
+                height = result_val.get("height", height)
+                
+        # Capture screenshot
+        screen_resp = await cdp.page_capture_screenshot(session_id, tab_id, image_format="png")
+        
+        base64_data = ""
+        if isinstance(screen_resp, dict):
+            base64_data = screen_resp.get("data", "")
+            
+        return {
+            "base64": base64_data,
+            "mime_type": "image/png",
+            "width": width,
+            "height": height
         }
