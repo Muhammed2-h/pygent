@@ -5,7 +5,7 @@ Provides a structured interface for interacting with CDP endpoints.
 """
 
 import asyncio
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 from browser.transport import BrowserTransport
 from browser.models import ExtensionRequest
 
@@ -23,7 +23,7 @@ class CDPClient:
         self.transport = transport
         self.default_timeout = default_timeout
 
-    async def send_command(self, session_id: str, tab_id: int, method: str, params: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None) -> Any:
+    async def send_command(self, session_id: str, tab_id: int, method: str, params: Optional[dict[str, Any]] = None, timeout: Optional[float] = None) -> Any:
         """
         Send a raw CDP command and wait for its response.
         
@@ -57,7 +57,7 @@ class CDPClient:
             raise RuntimeError(f"CDP command '{method}' failed: {resp.error}")
         return resp.data
 
-    async def send_batch(self, session_id: str, tab_id: int, commands: list[Dict[str, Any]], timeout: Optional[float] = None) -> list[Any]:
+    async def send_batch(self, session_id: str, tab_id: int, commands: list[dict[str, Any]], timeout: Optional[float] = None) -> list[Any]:
         """
         Send a batch of CDP commands and wait for their responses.
         
@@ -65,7 +65,7 @@ class CDPClient:
             session_id: The browser session ID.
             tab_id: The ID of the tab to execute the commands in.
             commands: List of dicts, each with a 'method' key and optionally 'params'.
-            timeout: Optional timeout for the batch execution.
+            timeout: Optional timeout for the entire batch execution.
             
         Returns:
             A list of responses corresponding to the commands.

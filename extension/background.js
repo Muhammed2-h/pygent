@@ -321,23 +321,50 @@ async function handleRequest(msg) {
       }
 
       const results = [];
+      const resolveRefs = (obj) => {
+          if (typeof obj === 'string' && obj.startsWith('$ref:')) {
+              const path = obj.slice(5).split('.');
+              let current = results;
+              for (const part of path) {
+                  if (current === undefined || current === null) break;
+                  current = current[part];
+              }
+              return current;
+          } else if (Array.isArray(obj)) {
+              return obj.map(item => resolveRefs(item));
+          } else if (obj !== null && typeof obj === 'object') {
+              const newObj = {};
+              for (const key in obj) {
+                  newObj[key] = resolveRefs(obj[key]);
+              }
+              return newObj;
+          }
+          return obj;
+      };
+
       try {
           for (let i = 0; i < args.commands.length; i++) {
               const cmd = args.commands[i];
               if (!cmd.method) {
                   throw new Error(`Command at index ${i} is missing 'method'`);
               }
+              const resolvedParams = resolveRefs(cmd.params || {});
               const res = await new Promise((resolve, reject) => {
                   chrome.debugger.sendCommand(
                       { tabId },
                       cmd.method,
-                      cmd.params || {},
+                      resolvedParams,
                       (result) => {
                           if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
                           else resolve(result);
                       }
                   );
               });
+              
+              if (res && res.exceptionDetails) {
+                  throw new Error(`Command at index ${i} failed semantically: ${res.exceptionDetails.exception?.description || res.exceptionDetails.text}`);
+              }
+              
               results.push(res);
           }
       } finally {
