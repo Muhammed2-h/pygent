@@ -1,4 +1,6 @@
 from enum import Enum
+import re
+import json
 
 class RiskLevel(str, Enum):
     SAFE = "safe"
@@ -33,15 +35,16 @@ class BrowserPolicy:
     def __init__(self):
         self.dangerous_keywords = ["purchase", "buy", "pay", "transfer", "delete", "remove", "password", "credential"]
         self.sensitive_keywords = ["upload", "message", "send", "download", "submit", "post"]
+        
+        # Compile word-boundary regexes
+        self.dangerous_regex = re.compile(r'\b(?:' + '|'.join(map(re.escape, self.dangerous_keywords)) + r')\b', re.IGNORECASE)
+        self.sensitive_regex = re.compile(r'\b(?:' + '|'.join(map(re.escape, self.sensitive_keywords)) + r')\b', re.IGNORECASE)
 
     def evaluate_js(self, script: str) -> RiskLevel:
-        script_lower = script.lower()
-        for kw in self.dangerous_keywords:
-            if kw in script_lower:
-                return RiskLevel.DANGEROUS
-        for kw in self.sensitive_keywords:
-            if kw in script_lower:
-                return RiskLevel.SENSITIVE
+        if self.dangerous_regex.search(script):
+            return RiskLevel.DANGEROUS
+        if self.sensitive_regex.search(script):
+            return RiskLevel.SENSITIVE
         return RiskLevel.SAFE
         
     def evaluate_cdp(self, method: str, params: dict = None) -> RiskLevel:
@@ -53,12 +56,14 @@ class BrowserPolicy:
         
         # Also check params if any
         if params:
-            params_str = str(params).lower()
-            for kw in self.dangerous_keywords:
-                if kw in params_str:
-                    return RiskLevel.DANGEROUS
-            for kw in self.sensitive_keywords:
-                if kw in params_str:
-                    return RiskLevel.SENSITIVE
+            try:
+                params_str = json.dumps(params).lower()
+            except TypeError:
+                params_str = str(params).lower()
+                
+            if self.dangerous_regex.search(params_str):
+                return RiskLevel.DANGEROUS
+            if self.sensitive_regex.search(params_str):
+                return RiskLevel.SENSITIVE
                     
         return RiskLevel.SAFE
