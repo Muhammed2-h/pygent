@@ -7,7 +7,6 @@
     "tabs",
     "scripting",
     "debugger",
-    "activeTab",
     "alarms"
   ],
   "host_permissions": [

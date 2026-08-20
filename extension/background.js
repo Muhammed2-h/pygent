@@ -17,17 +17,21 @@ function connect() {
       if (msg.type === 'request') {
         try {
           const response = await handleRequest(msg);
-          socket.send(JSON.stringify({
-            type: 'response',
-            id: msg.id,
-            payload: response
-          }));
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              type: 'response',
+              id: msg.id,
+              payload: response
+            }));
+          }
         } catch (err) {
-          socket.send(JSON.stringify({
-            type: 'response',
-            id: msg.id,
-            error: err.message
-          }));
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+              type: 'response',
+              id: msg.id,
+              error: err.message
+            }));
+          }
         }
       }
     } catch (err) {
@@ -50,7 +54,7 @@ function connect() {
 connect();
 
 // Keep service worker alive
-chrome.alarms.create("keepAlive", { periodInMinutes: 0.5 });
+chrome.alarms.create("keepAlive", { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "keepAlive") {
     // Just a wake up event to keep SW alive
@@ -81,13 +85,18 @@ async function handleRequest(msg) {
       
     case 'switch_tab':
       if (!args || typeof args.tabId === 'undefined') throw new Error("Missing tabId");
-      return await chrome.tabs.update(args.tabId, { active: true });
+      const tab = await chrome.tabs.update(args.tabId, { active: true });
+      if (tab && tab.windowId) {
+        await chrome.windows.update(tab.windowId, { focused: true });
+      }
+      return tab;
       
     case 'create_tab':
       return await chrome.tabs.create({ url: args?.url });
       
     case 'execute_script':
       if (!args || typeof args.tabId === 'undefined') throw new Error("Missing tabId");
+      if (!args.files || args.files.length === 0) throw new Error("Missing files array");
       return await chrome.scripting.executeScript({
         target: { tabId: args.tabId },
         files: args.files
