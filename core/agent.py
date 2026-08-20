@@ -6,6 +6,7 @@ from core.state import AgentState
 from core.context import ContextBuilder
 from core.events import EventBus
 from core.loop import AgentLoop
+from prompts.builder import PromptBuilder
 
 class Agent:
     def __init__(
@@ -36,7 +37,6 @@ class Agent:
         self.context.messages = val
 
     def run(self, system_prompt: str, user_input: str) -> List[Message]:
-        from prompts.builder import PromptBuilder
         builder = PromptBuilder()
         built_prompt = builder.build(tools=self.tools)
         
@@ -58,4 +58,4 @@ class Agent:
             state=state, 
             events=self.events
         )
-        return loop.run(system_prompt, user_input)
+        return loop.run(final_system_prompt, user_input)

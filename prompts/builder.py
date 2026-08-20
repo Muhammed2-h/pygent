@@ -22,20 +22,10 @@ class PromptBuilder:
                 if hasattr(tool, 'category') and tool.category:
                     categories.add(tool.category)
                     
-        # Check specific domains
-        if "browser" in categories:
-            browser_path = self.prompts_dir / "browser.md"
-            if browser_path.exists():
-                parts.append(browser_path.read_text().strip())
-                
-        if "memory" in categories:
-            memory_path = self.prompts_dir / "memory.md"
-            if memory_path.exists():
-                parts.append(memory_path.read_text().strip())
-                
-        if "evolution" in categories:
-            evo_path = self.prompts_dir / "evolution.md"
-            if evo_path.exists():
-                parts.append(evo_path.read_text().strip())
+        # Check all available category prompts dynamically
+        for category in sorted(categories):
+            cat_path = self.prompts_dir / f"{category}.md"
+            if cat_path.exists():
+                parts.append(cat_path.read_text().strip())
                 
         return "\n\n".join(parts)
