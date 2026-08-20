@@ -1,9 +1,13 @@
 import subprocess
+import shlex
+import re
+import logging
 from typing import Dict, Optional, Callable, Any
 
 from models import EnvironmentCapability
-from .probe import probe_all
+from .probe import probe_all, probe_capability
 
+logger = logging.getLogger(__name__)
 
 class EnvironmentManager:
     """
@@ -28,9 +32,8 @@ class EnvironmentManager:
         return probe_all()
 
     def get_capability(self, name: str) -> Optional[EnvironmentCapability]:
-        """Get a specific capability by name."""
-        capabilities = self.check_capabilities()
-        return capabilities.get(name)
+        """Get a specific capability by name using targeted probe."""
+        return probe_capability(name)
 
     def _requires_confirmation(self, command: str, reason: str = "") -> bool:
         """
@@ -46,7 +49,10 @@ class EnvironmentManager:
         ]
         
         text_to_check = f"{command} {reason}".lower()
-        return any(keyword in text_to_check for keyword in sensitive_keywords)
+        for keyword in sensitive_keywords:
+            if re.search(r'\b' + re.escape(keyword) + r'\b', text_to_check):
+                return True
+        return False
 
     def repair_or_install(self, name: str, install_command: str, reason: str = "") -> bool:
         """
@@ -63,15 +69,17 @@ class EnvironmentManager:
                 return False
                 
         try:
+            # Use shlex.split to avoid shell=True injection risks
+            cmd_args = shlex.split(install_command)
             subprocess.run(
-                install_command,
-                shell=True,
+                cmd_args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 check=True
             )
             return True
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, FileNotFoundError):
             return False
 
     def verify_and_persist(self, name: str) -> bool:
@@ -92,6 +100,8 @@ class EnvironmentManager:
         if self.memory_store and hasattr(self.memory_store, "add_memory"):
             # Using mem_type="fact" as implied by the task description
             self.memory_store.add_memory(content=content, mem_type="fact", title=title)
+        else:
+            logger.debug(f"persist_fact called but memory_store is None (title: '{title}')")
 
     def ensure_capability(self, name: str, install_command: Optional[str] = None, reason: str = "") -> bool:
         """

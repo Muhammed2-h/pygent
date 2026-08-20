@@ -135,17 +135,25 @@ def probe_virtual_environment() -> EnvironmentCapability:
         last_checked=get_current_time()
     )
 
+PROBE_MAP = {
+    "os": probe_os,
+    "python": probe_python,
+    "git": probe_git,
+    "chrome": probe_chrome,
+    "chrome_extension": probe_chrome_extension,
+    "websocket_port": probe_websocket_port,
+    "http_bridge": probe_http_bridge,
+    "filesystem": probe_filesystem,
+    "virtual_environment": probe_virtual_environment,
+    "node": probe_node,
+    "docker": probe_docker
+}
+
+def probe_capability(name: str) -> EnvironmentCapability | None:
+    probe_func = PROBE_MAP.get(name)
+    if probe_func:
+        return probe_func()
+    return None
+
 def probe_all() -> Dict[str, EnvironmentCapability]:
-    return {
-        "os": probe_os(),
-        "python": probe_python(),
-        "git": probe_git(),
-        "chrome": probe_chrome(),
-        "chrome_extension": probe_chrome_extension(),
-        "websocket_port": probe_websocket_port(),
-        "http_bridge": probe_http_bridge(),
-        "filesystem": probe_filesystem(),
-        "virtual_environment": probe_virtual_environment(),
-        "node": probe_node(),
-        "docker": probe_docker()
-    }
+    return {name: func() for name, func in PROBE_MAP.items()}

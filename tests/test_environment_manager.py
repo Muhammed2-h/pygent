@@ -18,6 +18,8 @@ def mock_capabilities():
         "git": EnvironmentCapability(name="git", available=False)
     }
 
+def fake_probe_capability(name, mock_caps):
+    return mock_caps.get(name)
 
 def test_init_defaults():
     manager = EnvironmentManager()
@@ -34,7 +36,7 @@ def test_check_capabilities(mock_capabilities):
 
 
 def test_get_capability(mock_capabilities):
-    with patch("environment.manager.probe_all", return_value=mock_capabilities):
+    with patch("environment.manager.probe_capability", side_effect=lambda n: fake_probe_capability(n, mock_capabilities)):
         manager = EnvironmentManager()
         assert manager.get_capability("python").available is True
         assert manager.get_capability("git").available is False
@@ -45,6 +47,8 @@ def test_requires_confirmation():
     manager = EnvironmentManager()
     assert manager._requires_confirmation("sudo apt install git") is True
     assert manager._requires_confirmation("echo 'hello'") is False
+    # Use word boundary - "adapted" has "apt" but shouldn't match
+    assert manager._requires_confirmation("echo adapted") is False
     assert manager._requires_confirmation("pip install req", reason="installing driver") is True
     assert manager._requires_confirmation("google-chrome --version") is True
 
@@ -83,7 +87,7 @@ def test_repair_or_install_no_confirmation_needed():
 
 
 def test_verify_and_persist(mock_capabilities, mock_memory_store):
-    with patch("environment.manager.probe_all", return_value=mock_capabilities):
+    with patch("environment.manager.probe_capability", side_effect=lambda n: fake_probe_capability(n, mock_capabilities)):
         manager = EnvironmentManager(memory_store=mock_memory_store)
         
         # Test available capability
@@ -99,7 +103,7 @@ def test_verify_and_persist(mock_capabilities, mock_memory_store):
 
 
 def test_ensure_capability_already_available(mock_capabilities, mock_memory_store):
-    with patch("environment.manager.probe_all", return_value=mock_capabilities):
+    with patch("environment.manager.probe_capability", side_effect=lambda n: fake_probe_capability(n, mock_capabilities)):
         manager = EnvironmentManager(memory_store=mock_memory_store)
         
         # Should just verify and persist
@@ -108,7 +112,7 @@ def test_ensure_capability_already_available(mock_capabilities, mock_memory_stor
 
 
 def test_ensure_capability_missing_no_command(mock_capabilities):
-    with patch("environment.manager.probe_all", return_value=mock_capabilities):
+    with patch("environment.manager.probe_capability", side_effect=lambda n: fake_probe_capability(n, mock_capabilities)):
         manager = EnvironmentManager()
         
         # Missing, and no install command provided
@@ -119,12 +123,12 @@ def test_ensure_capability_install_success(mock_memory_store):
     # First it's missing, then after repair it's available
     state = {"available": False}
     
-    def fake_probe_all():
-        return {
-            "git": EnvironmentCapability(name="git", available=state["available"])
-        }
+    def mock_probe_cap(name):
+        if name == "git":
+            return EnvironmentCapability(name="git", available=state["available"])
+        return None
     
-    with patch("environment.manager.probe_all", side_effect=fake_probe_all):
+    with patch("environment.manager.probe_capability", side_effect=mock_probe_cap):
         manager = EnvironmentManager(
             confirmation_callback=lambda x: True,
             memory_store=mock_memory_store
@@ -141,12 +145,12 @@ def test_ensure_capability_install_success(mock_memory_store):
 
 
 def test_ensure_capability_install_fails():
-    def fake_probe_all():
-        return {
-            "git": EnvironmentCapability(name="git", available=False)
-        }
+    def mock_probe_cap(name):
+        if name == "git":
+            return EnvironmentCapability(name="git", available=False)
+        return None
     
-    with patch("environment.manager.probe_all", side_effect=fake_probe_all):
+    with patch("environment.manager.probe_capability", side_effect=mock_probe_cap):
         manager = EnvironmentManager(confirmation_callback=lambda x: True)
         
         with patch("subprocess.run") as mock_run:
