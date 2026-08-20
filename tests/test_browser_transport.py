@@ -22,16 +22,25 @@ async def test_register_unregister_session(transport):
     assert "sess1" not in transport.sessions
 
 @pytest.mark.asyncio
-async def test_ws_communication(transport):
+async def test_ws_communication_and_ack(transport):
     transport.register_session("sess1")
     
+    message_id_event = asyncio.Event()
+    received_message_id = None
+    
     async def client_task():
+        nonlocal received_message_id
         async with ClientSession() as session:
             async with session.ws_connect('http://127.0.0.1:18765/ws?session_id=sess1') as ws:
                 # Wait for command
                 msg = await ws.receive()
                 assert msg.type == WSMsgType.TEXT
-                assert msg.json() == {"cmd": "test"}
+                data = msg.json()
+                
+                assert "message_id" in data
+                assert data["command"] == {"cmd": "test"}
+                received_message_id = data["message_id"]
+                message_id_event.set()
                 
                 # Send result
                 await ws.send_json({"res": "ok"})
@@ -41,7 +50,18 @@ async def test_ws_communication(transport):
     # Wait a bit for connection
     await asyncio.sleep(0.1)
     
-    await transport.send_command("sess1", {"cmd": "test"})
+    msg_id = await transport.send_command("sess1", {"cmd": "test"})
+    
+    # Wait for the client to receive it
+    await asyncio.wait_for(message_id_event.wait(), timeout=1.0)
+    assert received_message_id == msg_id
+    
+    # It should still be in pending since not acked
+    assert len(transport._pending_commands["sess1"]) == 1
+    
+    # Acknowledge
+    transport.acknowledge("sess1", msg_id)
+    assert len(transport._pending_commands["sess1"]) == 0
     
     result = await transport.receive_result("sess1", timeout=1.0)
     assert result == {"res": "ok"}
@@ -49,16 +69,23 @@ async def test_ws_communication(transport):
     await task
 
 @pytest.mark.asyncio
-async def test_http_long_poll(transport):
+async def test_http_long_poll_and_ack(transport):
     transport.register_session("sess2")
     
+    msg_id_event = asyncio.Event()
+    received_msg_id = None
+    
     async def client_task():
+        nonlocal received_msg_id
         async with ClientSession() as session:
             # Long poll for command
             async with session.get('http://127.0.0.1:18766/poll?session_id=sess2') as resp:
                 assert resp.status == 200
                 data = await resp.json()
-                assert data == {"cmd": "test_http"}
+                assert "message_id" in data
+                assert data["command"] == {"cmd": "test_http"}
+                received_msg_id = data["message_id"]
+                msg_id_event.set()
                 
             # Send result
             async with session.post('http://127.0.0.1:18766/result?session_id=sess2', json={"res": "ok_http"}) as resp:
@@ -67,7 +94,15 @@ async def test_http_long_poll(transport):
     task = asyncio.create_task(client_task())
     
     # Send command (will queue and then be picked up by poll)
-    await transport.send_command("sess2", {"cmd": "test_http"})
+    msg_id = await transport.send_command("sess2", {"cmd": "test_http"})
+    
+    await asyncio.wait_for(msg_id_event.wait(), timeout=1.0)
+    assert received_msg_id == msg_id
+    
+    # Still pending
+    assert len(transport._pending_commands["sess2"]) == 1
+    transport.acknowledge("sess2", msg_id)
+    assert len(transport._pending_commands["sess2"]) == 0
     
     result = await transport.receive_result("sess2", timeout=1.0)
     assert result == {"res": "ok_http"}
