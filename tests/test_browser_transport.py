@@ -65,7 +65,7 @@ async def test_ws_communication_and_ack(transport):
     transport.acknowledge("sess1", msg_id)
     assert len(transport._pending_commands["sess1"]) == 0
     
-    result = await transport.receive_result("sess1", timeout=1.0)
+    result = await transport.receive_result("sess1", msg_id=msg_id, timeout=1.0)
     assert result.id == msg_id
     assert result.ok is True
     assert result.data == {"res": "ok"}
@@ -109,7 +109,7 @@ async def test_http_long_poll_and_ack(transport):
     transport.acknowledge("sess2", msg_id)
     assert len(transport._pending_commands["sess2"]) == 0
     
-    result = await transport.receive_result("sess2", timeout=1.0)
+    result = await transport.receive_result("sess2", msg_id=msg_id, timeout=1.0)
     assert result.id == msg_id
     assert result.ok is True
     assert result.data == {"res": "ok_http"}

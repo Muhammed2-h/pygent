@@ -18,13 +18,11 @@ class BrowserDriver:
     async def _enumerate_tabs(self, session_id: str) -> list:
         req = ExtensionRequest(cmd="enumerate_tabs", payload={})
         msg_id = await self.transport.send_command(session_id, req)
-        while True:
-            resp = await self.transport.receive_result(session_id, timeout=60.0)
-            if resp.id == msg_id:
-                self.transport.acknowledge(session_id, msg_id)
-                if not resp.ok:
-                    raise RuntimeError(f"Failed to enumerate tabs: {resp.error}")
-                return resp.data
+        resp = await self.transport.receive_result(session_id, msg_id, timeout=60.0)
+        self.transport.acknowledge(session_id, msg_id)
+        if not resp.ok:
+            raise RuntimeError(f"Failed to enumerate tabs: {resp.error}")
+        return resp.data
 
     async def execute_js(self, session_id: str, tab_id: int, script: str) -> dict:
         """
@@ -52,18 +50,14 @@ class BrowserDriver:
         exec_error = None
         
         try:
-            while True:
-                # Use a larger timeout for JS execution
-                resp = await self.transport.receive_result(session_id, timeout=60.0)
-                if resp.id == msg_id:
-                    self.transport.acknowledge(session_id, msg_id)
-                    if not resp.ok:
-                        exec_error = resp.error
-                    else:
-                        result_data = resp.data
-                        if isinstance(result_data, dict) and result_data.get("__pygent_error"):
-                            exec_error = f"JS Error: {result_data.get('message')}\nStack: {result_data.get('stack')}"
-                    break
+            resp = await self.transport.receive_result(session_id, msg_id, timeout=60.0)
+            self.transport.acknowledge(session_id, msg_id)
+            if not resp.ok:
+                exec_error = resp.error
+            else:
+                result_data = resp.data
+                if isinstance(result_data, dict) and result_data.get("__pygent_error"):
+                    exec_error = f"JS Error: {result_data.get('message')}\nStack: {result_data.get('stack')}"
         except asyncio.TimeoutError:
             exec_error = "Timeout waiting for JavaScript execution"
         except Exception as e:

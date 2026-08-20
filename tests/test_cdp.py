@@ -13,11 +13,11 @@ class DummyTransport:
         self.call_count += 1
         return f"msg{self.call_count}"
     
-    async def receive_result(self, session_id, timeout=None):
+    async def receive_result(self, session_id, msg_id, timeout=None):
         req = self.sent_requests[-1]
         if req.cmd == "debugger_send_command":
-            return ExtensionResponse(id=f"msg{self.call_count}", ok=True, data={"result": "ok"})
-        return ExtensionResponse(id=f"msg{self.call_count}", ok=False, error="Unknown cmd")
+            return ExtensionResponse(id=req.id, ok=True, data={"result": "ok"})
+        return ExtensionResponse(id=req.id, ok=False, error="Unknown cmd")
         
     def acknowledge(self, session_id, msg_id):
         pass
@@ -41,7 +41,7 @@ async def test_cdp_client_methods():
     assert transport.sent_requests[-1].payload["commandParams"]["url"] == "http://example.com"
     
     # test page_capture_screenshot
-    await client.page_capture_screenshot("sess1", 123, format="jpeg", quality=80)
+    await client.page_capture_screenshot("sess1", 123, image_format="jpeg", quality=80)
     assert transport.sent_requests[-1].payload["method"] == "Page.captureScreenshot"
     assert transport.sent_requests[-1].payload["commandParams"]["format"] == "jpeg"
     assert transport.sent_requests[-1].payload["commandParams"]["quality"] == 80

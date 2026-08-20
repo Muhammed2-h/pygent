@@ -15,7 +15,7 @@ async def test_browser_execute_js_happy_path():
             self.call_count += 1
             return f"msg{self.call_count}"
         
-        async def receive_result(self, session_id, timeout=None):
+        async def receive_result(self, session_id, msg_id, timeout=None):
             if self.req.cmd == "enumerate_tabs":
                 return ExtensionResponse(id=f"msg{self.call_count}", ok=True, data=[{"id": 123, "url": "http://example.com"}])
             elif self.req.cmd == "execute":
@@ -44,7 +44,7 @@ async def test_browser_execute_js_navigation_detection():
             self.call_count += 1
             return f"msg{self.call_count}"
         
-        async def receive_result(self, session_id, timeout=None):
+        async def receive_result(self, session_id, msg_id, timeout=None):
             if self.req.cmd == "enumerate_tabs":
                 if self.call_count == 1:
                     return ExtensionResponse(id=f"msg{self.call_count}", ok=True, data=[{"id": 123, "url": "http://a.com"}])
@@ -76,7 +76,7 @@ async def test_browser_execute_js_error_extraction():
             self.call_count += 1
             return f"msg{self.call_count}"
         
-        async def receive_result(self, session_id, timeout=None):
+        async def receive_result(self, session_id, msg_id, timeout=None):
             if self.req.cmd == "enumerate_tabs":
                 return ExtensionResponse(id=f"msg{self.call_count}", ok=True, data=[{"id": 123, "url": "http://example.com"}])
             elif self.req.cmd == "execute":

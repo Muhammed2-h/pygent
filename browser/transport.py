@@ -21,7 +21,7 @@ class BrowserTransport:
         self._pending_commands: Dict[str, List[Dict[str, Any]]] = {}
         self._command_events: Dict[str, asyncio.Event] = {}
         
-        self._result_queues: Dict[str, asyncio.Queue] = {}
+        self._result_futures: Dict[str, Dict[str, asyncio.Future]] = {}
         self._http_sent_ids: Dict[str, Set[str]] = {}
         
         self._active_ws: Dict[str, web.WebSocketResponse] = {}
@@ -73,8 +73,8 @@ class BrowserTransport:
             self._pending_commands[session_id] = []
         if session_id not in self._command_events:
             self._command_events[session_id] = asyncio.Event()
-        if session_id not in self._result_queues:
-            self._result_queues[session_id] = asyncio.Queue()
+        if session_id not in self._result_futures:
+            self._result_futures[session_id] = {}
         if session_id not in self._http_sent_ids:
             self._http_sent_ids[session_id] = set()
 
@@ -84,8 +84,8 @@ class BrowserTransport:
             del self._pending_commands[session_id]
         if session_id in self._command_events:
             del self._command_events[session_id]
-        if session_id in self._result_queues:
-            del self._result_queues[session_id]
+        if session_id in self._result_futures:
+            del self._result_futures[session_id]
         if session_id in self._http_sent_ids:
             del self._http_sent_ids[session_id]
         if session_id in self._active_ws:
@@ -104,14 +104,19 @@ class BrowserTransport:
         self._command_events[session_id].set()
         return req_dict["id"]
 
-    async def receive_result(self, session_id: str, timeout: Optional[float] = None) -> ExtensionResponse:
+    async def receive_result(self, session_id: str, msg_id: str, timeout: Optional[float] = None) -> ExtensionResponse:
         if session_id not in self.sessions:
             raise ValueError(f"Unknown session {session_id}")
         
+        if msg_id not in self._result_futures[session_id]:
+            self._result_futures[session_id][msg_id] = asyncio.Future()
+            
+        future = self._result_futures[session_id][msg_id]
+        
         if timeout is not None:
-            return await asyncio.wait_for(self._result_queues[session_id].get(), timeout)
+            return await asyncio.wait_for(future, timeout)
         else:
-            return await self._result_queues[session_id].get()
+            return await future
 
     def acknowledge(self, session_id: str, msg_id: str):
         """Acknowledge a received message."""
@@ -120,6 +125,8 @@ class BrowserTransport:
                 cmd for cmd in self._pending_commands[session_id]
                 if cmd["id"] != msg_id
             ]
+        if session_id in self._result_futures:
+            self._result_futures[session_id].pop(msg_id, None)
 
     async def _ws_handler(self, request: web.Request):
         origin = request.headers.get("Origin")
@@ -174,7 +181,12 @@ class BrowserTransport:
                     try:
                         data = json.loads(msg.data)
                         resp = ExtensionResponse.model_validate(data)
-                        await self._result_queues[session_id].put(resp)
+                        if session_id in self._result_futures:
+                            if resp.id not in self._result_futures[session_id]:
+                                self._result_futures[session_id][resp.id] = asyncio.Future()
+                            future = self._result_futures[session_id][resp.id]
+                            if not future.done():
+                                future.set_result(resp)
                     except Exception as e:
                         logger.error(f"Failed to parse WS message: {e}")
                 elif msg.type == WSMsgType.ERROR:
@@ -245,7 +257,12 @@ class BrowserTransport:
         try:
             data = await request.json()
             resp = ExtensionResponse.model_validate(data)
-            await self._result_queues[session_id].put(resp)
+            if session_id in self._result_futures:
+                if resp.id not in self._result_futures[session_id]:
+                    self._result_futures[session_id][resp.id] = asyncio.Future()
+                future = self._result_futures[session_id][resp.id]
+                if not future.done():
+                    future.set_result(resp)
             return web.json_response({"status": "ok"})
         except Exception as e:
             logger.error(f"Failed to parse HTTP result: {e}")
