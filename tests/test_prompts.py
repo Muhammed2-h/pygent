@@ -56,7 +56,7 @@ def test_prompt_builder_some(temp_prompts):
     assert "System Base" in result
     assert "Browser Instructions" in result
     assert "Memory Instructions" not in result
-    assert "Evolution Instructions" not in result
+    assert "Evolution Instructions" in result
     
 def test_prompt_builder_missing_files(tmp_path):
     _global_tools.clear()
@@ -105,3 +105,21 @@ def test_real_memory_prompt_exists():
     assert "preserve environment facts" in content
     assert "record failure lessons" in content
 
+
+def test_real_evolution_prompt_exists():
+    from prompts.builder import PromptBuilder
+    builder = PromptBuilder()
+    evolution_path = builder.prompts_dir / "evolution.md"
+    assert evolution_path.exists()
+    content = evolution_path.read_text().lower()
+    assert "discover" in content
+    assert "execute" in content
+    assert "verify" in content
+    assert "repair" in content
+    assert "crystallize" in content
+    assert "reuse" in content
+    assert "task" in content
+    assert "candidate skill" in content
+    assert "verification" in content
+    assert "persistence" in content
+    assert "revalidation" in content

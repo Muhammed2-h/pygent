@@ -16,6 +16,10 @@ class PromptBuilder:
         if system_path.exists():
             parts.append(system_path.read_text().strip())
             
+        evolution_path = self.prompts_dir / "evolution.md"
+        if evolution_path.exists():
+            parts.append(evolution_path.read_text().strip())
+            
         categories: Set[str] = set()
         if tools is not None:
             for tool in tools.tools.values():
