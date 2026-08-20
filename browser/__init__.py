@@ -7,7 +7,7 @@ It contains modules for driving the browser, handling sessions, state, transport
 
 from .driver import BrowserDriver
 from .transport import BrowserTransport
-from .session import BrowserSession
+from .session import BrowserSessionManager, Session
 from .observer import BrowserObserver
 from .state import BrowserState
 from .cdp import CDPClient
@@ -15,7 +15,8 @@ from .cdp import CDPClient
 __all__ = [
     "BrowserDriver",
     "BrowserTransport",
-    "BrowserSession",
+    "BrowserSessionManager",
+    "Session",
     "BrowserObserver",
     "BrowserState",
     "CDPClient",
