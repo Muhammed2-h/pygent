@@ -36,6 +36,14 @@ class Agent:
         self.context.messages = val
 
     def run(self, system_prompt: str, user_input: str) -> List[Message]:
+        from prompts.builder import PromptBuilder
+        builder = PromptBuilder()
+        built_prompt = builder.build(tools=self.tools)
+        
+        final_system_prompt = system_prompt
+        if built_prompt:
+            final_system_prompt += "\n\n" + built_prompt
+            
         # Reset state for each run if needed, but for now just create a new state
         state = AgentState(
             max_turns=self.max_steps,
