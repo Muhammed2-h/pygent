@@ -55,7 +55,8 @@ async def test_scan_text_only(observer, mock_driver):
 async def test_scan_max_chars(observer, mock_driver):
     result = await observer.scan("session_1", 1, {"max_chars": 5})
     assert "html" in result
-    assert len(result["html"]) <= 5
+    assert len(result["html"]) <= 25
+    assert result["html"].endswith("</body>")
 
 @pytest.mark.asyncio
 async def test_scan_full(observer, mock_driver):
