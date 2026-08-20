@@ -122,9 +122,20 @@ async function handleRequest(msg) {
           }
           
           function serialize(val) {
+              if (val === null || val === undefined) return val;
               if (val instanceof Node) return { __pygent_type: 'node', ...serializeNode(val) };
               if (val instanceof NodeList || val instanceof HTMLCollection) {
                   return { __pygent_type: 'nodelist', length: val.length, items: Array.from(val).map(serializeNode) };
+              }
+              if (Array.isArray(val)) {
+                  return val.map(item => serialize(item));
+              }
+              if (typeof val === 'object') {
+                  let out = {};
+                  for (let k in val) {
+                      out[k] = serialize(val[k]);
+                  }
+                  return out;
               }
               return val;
           }
@@ -142,6 +153,10 @@ async function handleRequest(msg) {
 
       return await new Promise((resolve, reject) => {
           chrome.debugger.getTargets((targets) => {
+              if (chrome.runtime.lastError) {
+                  return reject(new Error(chrome.runtime.lastError.message));
+              }
+              
               const target = targets.find(t => t.tabId === tabId && t.attached);
               const needsDetach = !target;
               
@@ -152,17 +167,22 @@ async function handleRequest(msg) {
                       returnByValue: true,
                       userGesture: true
                   }, (res) => {
+                      // Capture error synchronously
+                      const err = chrome.runtime.lastError ? chrome.runtime.lastError.message : null;
+                      
                       const complete = () => {
-                          if (chrome.runtime.lastError) {
-                              reject(new Error(chrome.runtime.lastError.message));
+                          if (err) {
+                              reject(new Error(err));
                           } else if (res && res.exceptionDetails) {
                               resolve({
                                   __pygent_error: true,
                                   message: res.exceptionDetails.exception?.description || res.exceptionDetails.text,
                                   stack: null
                               });
-                          } else {
+                          } else if (res && res.result) {
                               resolve(res.result.value);
+                          } else {
+                              resolve(null);
                           }
                       };
                       

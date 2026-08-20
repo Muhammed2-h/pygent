@@ -11,5 +11,5 @@ class ExtensionRequest(BaseModel):
 class ExtensionResponse(BaseModel):
     id: str
     ok: bool
-    data: dict[str, Any] | None = None
+    data: Any | None = None
     error: str | None = None
