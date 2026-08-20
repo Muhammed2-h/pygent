@@ -7,14 +7,12 @@ class ContextBuilder:
         self,
         prompt_builder=None,
         environment_manager=None,
-        memory_service=None,
-        browser_state=None
+        memory_service=None
     ):
         self.messages: List[Message] = []
         self.prompt_builder = prompt_builder
         self.environment_manager = environment_manager
         self.memory_service = memory_service
-        self.browser_state = browser_state
         
     def build_context(
         self, 
@@ -22,7 +20,8 @@ class ContextBuilder:
         user_input: str,
         checkpoint: Optional[str] = None,
         history: Optional[List[Message]] = None,
-        max_history: int = 10
+        max_history: int = 10,
+        browser_state: Optional[Any] = None
     ) -> List[Message]:
         """
         Builds the context dynamically according to:
@@ -44,9 +43,14 @@ class ContextBuilder:
             parts.append(system_prompt)
             
         # 2. Environment facts
-        if self.memory_service and hasattr(self.memory_service, 'get_environment_facts'):
-            facts = self.memory_service.get_environment_facts(user_input)
-            fact_texts = [f"- {f.get('content')}" for f in facts[:5] if f.get('content')]
+        if self.environment_manager and hasattr(self.environment_manager, 'check_capabilities'):
+            caps = self.environment_manager.check_capabilities()
+            fact_texts = []
+            for name, cap in caps.items():
+                if cap.available:
+                    version = f" ({cap.version})" if getattr(cap, 'version', None) else ""
+                    fact_texts.append(f"- {name}{version} is available")
+            
             if fact_texts:
                 parts.append("Environment Facts:\n" + "\n".join(fact_texts))
                 
@@ -62,14 +66,14 @@ class ContextBuilder:
             parts.append(f"Working Checkpoint:\n{checkpoint}")
             
         # 5. Recent browser state
-        if self.browser_state:
+        if browser_state:
             state_dict = {}
-            if hasattr(self.browser_state, 'model_dump'):
-                state_dict = self.browser_state.model_dump()
-            elif hasattr(self.browser_state, 'dict'):
-                state_dict = self.browser_state.dict()
-            elif isinstance(self.browser_state, dict):
-                state_dict = self.browser_state
+            if hasattr(browser_state, 'model_dump'):
+                state_dict = browser_state.model_dump()
+            elif hasattr(browser_state, 'dict'):
+                state_dict = browser_state.dict()
+            elif isinstance(browser_state, dict):
+                state_dict = browser_state
             
             parts.append(f"Recent Browser State:\n{json.dumps(state_dict, indent=2)}")
 
@@ -79,10 +83,11 @@ class ContextBuilder:
         context = [system_msg]
         
         # 6. Recent conversation & 7. Recent tool results
-        # We group these together by taking the recent message history.
         if history:
-            # slice the last N messages
-            context.extend(history[-max_history:] if max_history > 0 else history)
+            if max_history <= 0:
+                pass # append nothing
+            else:
+                context.extend(history[-max_history:])
             
         if user_input:
             context.append(Message(role="user", content=user_input))

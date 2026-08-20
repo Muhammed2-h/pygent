@@ -1,5 +1,5 @@
 import pytest
-from models import Message
+from models import Message, EnvironmentCapability
 from core.context import ContextBuilder
 from browser.state import BrowserState
 
@@ -7,10 +7,15 @@ class MockPromptBuilder:
     def build(self):
         return "mocked system rules"
 
+class MockEnvironmentManager:
+    def check_capabilities(self):
+        return {
+            "docker": EnvironmentCapability(name="docker", available=True, version="24.0.5"),
+            "node": EnvironmentCapability(name="node", available=True, version="v20.0.0"),
+            "ruby": EnvironmentCapability(name="ruby", available=False)
+        }
+
 class MockMemoryService:
-    def get_environment_facts(self, query):
-        return [{"content": "Ubuntu 22.04"}, {"content": "Python 3.12"}]
-        
     def get_relevant_skills(self, query):
         return [{"name": "grep_search", "content": "Use grep to search files"}]
 
@@ -27,8 +32,8 @@ def test_context_builder_basic():
 def test_context_builder_with_all_components():
     builder = ContextBuilder(
         prompt_builder=MockPromptBuilder(),
-        memory_service=MockMemoryService(),
-        browser_state=BrowserState(current_url="https://example.com")
+        environment_manager=MockEnvironmentManager(),
+        memory_service=MockMemoryService()
     )
     
     history = [
@@ -41,7 +46,8 @@ def test_context_builder_with_all_components():
         user_input="Current query",
         checkpoint="My checkpoint",
         history=history,
-        max_history=5
+        max_history=5,
+        browser_state=BrowserState(current_url="https://example.com")
     )
     
     assert len(context) == 4 # 1 system, 2 history, 1 current user
@@ -50,11 +56,17 @@ def test_context_builder_with_all_components():
     assert context[0].role == "system"
     assert "Base System." in sys_content
     assert "mocked system rules" in sys_content
+    
     assert "Environment Facts:" in sys_content
-    assert "- Ubuntu 22.04" in sys_content
+    assert "- docker (24.0.5) is available" in sys_content
+    assert "- node (v20.0.0) is available" in sys_content
+    assert "ruby" not in sys_content
+    
     assert "Top Skills:" in sys_content
     assert "- grep_search: Use grep to search files" in sys_content
+    
     assert "Working Checkpoint:\nMy checkpoint" in sys_content
+    
     assert "Recent Browser State:" in sys_content
     assert "https://example.com" in sys_content
     
@@ -83,6 +95,16 @@ def test_context_builder_max_history():
     assert len(context) == 4
     assert context[1].content == "msg3"
     assert context[2].content == "msg4"
+
+    # test max_history = 0
+    context_zero = builder.build_context(
+        system_prompt="sys",
+        user_input="user",
+        history=history,
+        max_history=0
+    )
+    assert len(context_zero) == 2 # 1 system, 0 history, 1 user
+    assert context_zero[1].content == "user"
 
 def test_context_builder_backward_compat():
     builder = ContextBuilder()
