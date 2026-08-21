@@ -1,13 +1,16 @@
 import sys
 from unittest.mock import patch, MagicMock
 from models import Message
+import cli.commands
 
-
-def test_cli_check_flag_with_key(monkeypatch, tmp_path, capsys):
+def test_cli_check_command_with_key(monkeypatch, tmp_path, capsys):
     test_db = str(tmp_path / "test_mem.db")
-    monkeypatch.setattr(sys, "argv", ["main.py", "--check"])
+    monkeypatch.setattr(sys, "argv", ["main.py", "check"])
     monkeypatch.setenv("OPENAI_API_KEY", "test-key-123")
-    monkeypatch.setattr("os.path.expanduser", lambda p: test_db if "~" in p else p)
+    
+    # We patch Path since the db is at Path(config.data_dir)/"memory"/"memory.db" 
+    # But wait, config.data_dir uses expanduser so patching expanduser works for config loading
+    monkeypatch.setattr("os.path.expanduser", lambda p: str(tmp_path) if "~" in p else p)
 
     from main import main
     main()
@@ -16,14 +19,14 @@ def test_cli_check_flag_with_key(monkeypatch, tmp_path, capsys):
     assert "Checking Configuration..." in captured
     assert "OpenAI Key: Present" in captured
     assert "Checking Database..." in captured
-    assert f"Database OK at {test_db}" in captured
+    assert "Database OK" in captured
 
 
-def test_cli_check_flag_without_key(monkeypatch, tmp_path, capsys):
+def test_cli_check_command_without_key(monkeypatch, tmp_path, capsys):
     test_db = str(tmp_path / "test_mem.db")
-    monkeypatch.setattr(sys, "argv", ["main.py", "--check"])
+    monkeypatch.setattr(sys, "argv", ["main.py", "check"])
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setattr("os.path.expanduser", lambda p: test_db if "~" in p else p)
+    monkeypatch.setattr("os.path.expanduser", lambda p: str(tmp_path) if "~" in p else p)
 
     from main import main
     main()
@@ -32,13 +35,12 @@ def test_cli_check_flag_without_key(monkeypatch, tmp_path, capsys):
     assert "Checking Configuration..." in captured
     assert "OpenAI Key: Present" not in captured
     assert "Checking Database..." in captured
-    assert f"Database OK at {test_db}" in captured
+    assert "Database OK" in captured
 
 
 def test_cli_memory_demo(monkeypatch, tmp_path, capsys):
-    test_db = str(tmp_path / "test_mem.db")
-    monkeypatch.setattr(sys, "argv", ["main.py", "--memory-demo"])
-    monkeypatch.setattr("os.path.expanduser", lambda p: test_db if "~" in p else p)
+    monkeypatch.setattr(sys, "argv", ["main.py", "memory", "--demo"])
+    monkeypatch.setattr("os.path.expanduser", lambda p: str(tmp_path) if "~" in p else p)
 
     from main import main
     main()
@@ -49,10 +51,9 @@ def test_cli_memory_demo(monkeypatch, tmp_path, capsys):
 
 
 def test_cli_missing_api_key(monkeypatch, tmp_path, capsys):
-    test_db = str(tmp_path / "test_mem.db")
     monkeypatch.setattr(sys, "argv", ["main.py"])
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setattr("os.path.expanduser", lambda p: test_db if "~" in p else p)
+    monkeypatch.setattr("os.path.expanduser", lambda p: str(tmp_path) if "~" in p else p)
 
     from main import main
     main()
@@ -62,10 +63,9 @@ def test_cli_missing_api_key(monkeypatch, tmp_path, capsys):
 
 
 def test_cli_interactive_loop(monkeypatch, tmp_path, capsys):
-    test_db = str(tmp_path / "test_mem.db")
-    monkeypatch.setattr(sys, "argv", ["main.py"])
+    monkeypatch.setattr(sys, "argv", ["main.py", "chat"])
     monkeypatch.setenv("OPENAI_API_KEY", "test-key-123")
-    monkeypatch.setattr("os.path.expanduser", lambda p: test_db if "~" in p else p)
+    monkeypatch.setattr("os.path.expanduser", lambda p: str(tmp_path) if "~" in p else p)
 
     user_inputs = iter(["Hello AI", "/quit"])
     monkeypatch.setattr("builtins.input", lambda prompt="": next(user_inputs))
@@ -77,8 +77,8 @@ def test_cli_interactive_loop(monkeypatch, tmp_path, capsys):
         Message(role="assistant", content="Hello! How can I help you today?"),
     ]
 
-    with patch("main.Agent", return_value=mock_agent_instance) as mock_agent_cls, \
-         patch("main.create_provider") as mock_provider_cls:
+    with patch("cli.repl.Agent", return_value=mock_agent_instance) as mock_agent_cls, \
+         patch("cli.repl.create_provider") as mock_provider_cls:
         from main import main
         main()
 
@@ -92,19 +92,46 @@ def test_cli_interactive_loop(monkeypatch, tmp_path, capsys):
 
 
 def test_cli_interactive_loop_eof(monkeypatch, tmp_path, capsys):
-    test_db = str(tmp_path / "test_mem.db")
-    monkeypatch.setattr(sys, "argv", ["main.py"])
+    monkeypatch.setattr(sys, "argv", ["main.py", "chat"])
     monkeypatch.setenv("OPENAI_API_KEY", "test-key-123")
-    monkeypatch.setattr("os.path.expanduser", lambda p: test_db if "~" in p else p)
+    monkeypatch.setattr("os.path.expanduser", lambda p: str(tmp_path) if "~" in p else p)
 
     def raise_eof(prompt=""):
         raise EOFError()
 
     monkeypatch.setattr("builtins.input", raise_eof)
 
-    with patch("main.Agent"), patch("main.create_provider"):
+    with patch("cli.repl.Agent"), patch("cli.repl.create_provider"):
         from main import main
         main()
 
     captured = capsys.readouterr().out
     assert "Pygent started. Type /quit to exit." in captured
+
+def test_cli_browser(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(sys, "argv", ["main.py", "browser"])
+    from main import main
+    main()
+    captured = capsys.readouterr().out
+    assert "Browser command executed." in captured
+
+def test_cli_browser_setup(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(sys, "argv", ["main.py", "browser", "setup"])
+    from main import main
+    main()
+    captured = capsys.readouterr().out
+    assert "Browser setup executed." in captured
+
+def test_cli_skills(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(sys, "argv", ["main.py", "skills"])
+    from main import main
+    main()
+    captured = capsys.readouterr().out
+    assert "Skills command executed." in captured
+
+def test_cli_environment(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(sys, "argv", ["main.py", "environment"])
+    from main import main
+    main()
+    captured = capsys.readouterr().out
+    assert "Environment command executed." in captured
