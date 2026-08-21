@@ -185,13 +185,17 @@ async function handleRequest(msg) {
               createdTabs.push(tab.id);
           };
           
-          chrome.webNavigation.onBeforeNavigate.addListener(navListener);
+          if (chrome.webNavigation && chrome.webNavigation.onBeforeNavigate) {
+              chrome.webNavigation.onBeforeNavigate.addListener(navListener);
+          }
           chrome.tabs.onCreated.addListener(tabCreatedListener);
           
           const cleanupAndResolve = async (res) => {
               // Wait a bit to ensure events are processed
               await new Promise(r => setTimeout(r, 50));
-              chrome.webNavigation.onBeforeNavigate.removeListener(navListener);
+              if (chrome.webNavigation && chrome.webNavigation.onBeforeNavigate) {
+                  chrome.webNavigation.onBeforeNavigate.removeListener(navListener);
+              }
               chrome.tabs.onCreated.removeListener(tabCreatedListener);
               
               if (navigationStarted || (res && typeof res === 'object' && res.__pygent_error && (res.message.includes('Execution context was destroyed') || res.message.includes('unknown context')))) {

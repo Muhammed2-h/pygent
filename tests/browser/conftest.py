@@ -1,0 +1,150 @@
+import pytest
+import pytest_asyncio
+import asyncio
+import socket
+import sys
+import shutil
+import subprocess
+from pathlib import Path
+import tempfile
+import threading
+from http.server import SimpleHTTPRequestHandler
+import socketserver
+
+from browser.transport import BrowserTransport
+from browser.driver import BrowserDriver
+from browser.cdp import CDPClient
+
+def find_chrome() -> str:
+    candidates = [
+        "google-chrome",
+        "google-chrome-stable",
+        "chromium",
+        "chromium-browser",
+        "chrome"
+    ]
+    if sys.platform == "darwin":
+        candidates.append("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
+
+    for candidate in candidates:
+        if Path(candidate).is_absolute() and Path(candidate).exists():
+            return candidate
+        path = shutil.which(candidate)
+        if path:
+            return path
+    return ""
+
+class QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
+@pytest.fixture(scope="session")
+def local_server():
+    temp_dir = tempfile.mkdtemp()
+    
+    # Create some test files
+    (Path(temp_dir) / "index.html").write_text("<html><body><h1>Test Page</h1><button id='btn'>Click me</button></body></html>")
+    (Path(temp_dir) / "page2.html").write_text("<html><body><h1>Page 2</h1></body></html>")
+    
+    class TCPServer(socketserver.TCPServer):
+        allow_reuse_address = True
+        
+    handler = lambda *args, **kwargs: QuietHandler(*args, directory=temp_dir, **kwargs)
+    
+    port = 8000
+    while True:
+        try:
+            httpd = TCPServer(("127.0.0.1", port), handler)
+            break
+        except OSError:
+            port += 1
+            
+    server_thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    server_thread.start()
+    
+    yield f"http://127.0.0.1:{port}"
+    
+    httpd.shutdown()
+    httpd.server_close()
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+@pytest_asyncio.fixture
+async def browser_env():
+    chrome_path = find_chrome()
+    if not chrome_path:
+        pytest.skip("Chrome not found")
+
+    ws_port = 18765
+    http_port = 18766
+    
+    root_dir = Path(__file__).parent.parent.parent
+    extension_dir = root_dir / "extension"
+    if not extension_dir.exists():
+        pytest.skip("Extension not found")
+        
+    transport = BrowserTransport(ws_port=ws_port, http_port=http_port)
+    session_id = "default"
+    transport.register_session(session_id)
+    
+    await transport.start_ws_server()
+    await transport.start_http_server()
+    
+    user_data_dir = tempfile.mkdtemp()
+    driver = BrowserDriver(transport=transport)
+    
+    cmd = [
+        chrome_path,
+        f"--load-extension={extension_dir}",
+        f"--user-data-dir={user_data_dir}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        "--remote-debugging-port=0"
+    ]
+    
+    xvfb = shutil.which("xvfb-run")
+    if xvfb:
+        cmd = [xvfb, "-a"] + cmd
+    else:
+        cmd.extend(["--headless=new", "--disable-gpu"])
+        
+    cmd.append(f"http://127.0.0.1:{http_port}/poll?session_id={session_id}")
+    
+    import os
+    import signal
+    log_out = open("/tmp/chrome_out.log", "w")
+    log_err = open("/tmp/chrome_err.log", "w")
+    proc = subprocess.Popen(cmd, stdout=log_out, stderr=log_err, preexec_fn=os.setsid)
+    
+    connected = False
+    for _ in range(300):
+        if transport.is_connected(session_id):
+            connected = True
+            break
+        await asyncio.sleep(0.1)
+        
+    if not connected:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except Exception:
+            proc.kill()
+        await transport.stop()
+        pytest.fail("Browser did not connect")
+        
+    env = {
+        "transport": transport,
+        "driver": driver,
+        "session_id": session_id,
+        "proc": proc,
+        "http_port": http_port
+    }
+    
+    yield env
+    
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except Exception:
+        proc.kill()
+        
+    shutil.rmtree(user_data_dir, ignore_errors=True)
+    await transport.stop()

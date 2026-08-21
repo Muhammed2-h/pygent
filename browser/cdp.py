@@ -246,3 +246,23 @@ class CDPClient:
         }
         params.update(kwargs)
         return await self.send_command(session_id, tab_id, "Input.dispatchKeyEvent", params, timeout=timeout)
+
+    async def attach(self, session_id: str, tab_id: int, timeout: Optional[float] = None) -> Any:
+        req = ExtensionRequest(cmd="debugger_attach", tabId=tab_id, payload={})
+        msg_id = await self.transport.send_command(session_id, req)
+        effective_timeout = timeout if timeout is not None else self.default_timeout
+        resp = await self.transport.receive_result(session_id, msg_id, timeout=effective_timeout)
+        self.transport.acknowledge(session_id, msg_id)
+        if not resp.ok:
+            raise RuntimeError(f"Failed to attach debugger: {resp.error}")
+        return resp.data
+
+    async def detach(self, session_id: str, tab_id: int, timeout: Optional[float] = None) -> Any:
+        req = ExtensionRequest(cmd="debugger_detach", tabId=tab_id, payload={})
+        msg_id = await self.transport.send_command(session_id, req)
+        effective_timeout = timeout if timeout is not None else self.default_timeout
+        resp = await self.transport.receive_result(session_id, msg_id, timeout=effective_timeout)
+        self.transport.acknowledge(session_id, msg_id)
+        if not resp.ok:
+            raise RuntimeError(f"Failed to detach debugger: {resp.error}")
+        return resp.data
