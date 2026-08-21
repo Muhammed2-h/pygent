@@ -166,3 +166,22 @@ def test_openai_provider_translates_message_history_with_tool_calls_and_tool_res
             },
         ],
     )
+
+from config import Config
+from providers.factory import create_provider
+
+def test_create_provider_openai():
+    config = Config(provider="openai", openai_api_key="test-key")
+    provider = create_provider(config)
+    assert isinstance(provider, OpenAIProvider)
+    assert provider.client.api_key == "test-key"
+
+def test_create_provider_openai_missing_key():
+    config = Config(provider="openai", openai_api_key=None)
+    with pytest.raises(ValueError, match="OPENAI_API_KEY must be set when using openai provider"):
+        create_provider(config)
+
+def test_create_provider_unsupported():
+    config = Config(provider="unsupported_provider", openai_api_key="test-key")
+    with pytest.raises(ValueError, match="Unsupported provider: unsupported_provider"):
+        create_provider(config)

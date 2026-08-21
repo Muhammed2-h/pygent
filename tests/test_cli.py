@@ -58,7 +58,7 @@ def test_cli_missing_api_key(monkeypatch, tmp_path, capsys):
     main()
 
     captured = capsys.readouterr().out
-    assert "Error: OPENAI_API_KEY not found in .env" in captured
+    assert "Error: OPENAI_API_KEY must be set when using openai provider" in captured
 
 
 def test_cli_interactive_loop(monkeypatch, tmp_path, capsys):
@@ -78,7 +78,7 @@ def test_cli_interactive_loop(monkeypatch, tmp_path, capsys):
     ]
 
     with patch("main.Agent", return_value=mock_agent_instance) as mock_agent_cls, \
-         patch("main.OpenAIProvider") as mock_provider_cls:
+         patch("main.create_provider") as mock_provider_cls:
         from main import main
         main()
 
@@ -102,7 +102,7 @@ def test_cli_interactive_loop_eof(monkeypatch, tmp_path, capsys):
 
     monkeypatch.setattr("builtins.input", raise_eof)
 
-    with patch("main.Agent"), patch("main.OpenAIProvider"):
+    with patch("main.Agent"), patch("main.create_provider"):
         from main import main
         main()
 

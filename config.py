@@ -33,6 +33,7 @@ def _parse_int(value: Optional[str], default: int) -> int:
 
 class Config(BaseModel):
     # Core
+    provider: str = Field(default="openai")
     openai_api_key: Optional[str] = Field(default=None)
     default_model: str = Field(default="gpt-4o")
     max_agent_steps: int = Field(default=40)
@@ -60,6 +61,7 @@ def load_config() -> Config:
     data_dir = str(Path(data_dir_raw).expanduser())
 
     return Config(
+        provider=os.getenv("PYGENT_PROVIDER", "openai"),
         openai_api_key=os.getenv("OPENAI_API_KEY") or None,
         default_model=os.getenv("DEFAULT_MODEL", "gpt-4o"),
         max_agent_steps=_parse_int(os.getenv("MAX_AGENT_STEPS"), 40),

@@ -2,7 +2,7 @@ import argparse
 import os
 from pathlib import Path
 from config import load_config, setup_data_directory
-from providers.openai_provider import OpenAIProvider
+from providers.factory import create_provider
 from tools import ToolRegistry
 from agent import Agent
 from memory.storage import MemoryStore
@@ -41,11 +41,11 @@ def main():
         store.close()
         return
 
-    if not config.openai_api_key:
-        print("Error: OPENAI_API_KEY not found in .env")
+    try:
+        provider = create_provider(config)
+    except ValueError as e:
+        print(f"Error: {e}")
         return
-
-    provider = OpenAIProvider(config.openai_api_key)
     tools = ToolRegistry()
     memory_store = MemoryStore(str(db_path), skills_dir=skills_dir)
     memory_svc = MemoryService(memory_store, PrivacyFilter())
