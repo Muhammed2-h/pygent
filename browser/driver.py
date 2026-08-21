@@ -117,6 +117,7 @@ class BrowserDriver:
             raise RuntimeError("Transport not configured")
             
         cdp = CDPClient(self.transport)
+        await cdp.attach(session_id, tab_id)
         
         # Get viewport dimensions
         eval_resp = await cdp.runtime_evaluate(

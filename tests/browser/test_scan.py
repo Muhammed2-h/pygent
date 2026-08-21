@@ -22,6 +22,6 @@ async def test_observer_scan(browser_env, local_server):
     observer = BrowserObserver(transport)
     scan_res = await observer.scan(session_id, tab_id)
     
-    assert "elements" in scan_res
-    assert isinstance(scan_res["elements"], list)
-    assert any(el.get("tagName", "").lower() == "button" for el in scan_res["elements"])
+    assert "interactive_elements" in scan_res
+    assert isinstance(scan_res["interactive_elements"], list)
+    assert any(el.get("tagName", "").lower() == "button" for el in scan_res["interactive_elements"])
