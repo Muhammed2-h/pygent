@@ -28,14 +28,16 @@ class ToolRegistry:
                 import asyncio
                 import concurrent.futures
                 
+
                 if _main_loop is not None and _main_loop.is_running():
+                    current_loop = None
                     try:
-                        # Try to get the current loop in this thread
                         current_loop = asyncio.get_running_loop()
-                        if current_loop is _main_loop:
-                            raise RuntimeError("Cannot execute async tool synchronously from within the main event loop thread")
                     except RuntimeError:
                         pass
+                        
+                    if current_loop is not None and current_loop is _main_loop:
+                        raise RuntimeError("Cannot execute async tool synchronously from within the main event loop thread")
                     
                     future = asyncio.run_coroutine_threadsafe(res, _main_loop)
                     res = future.result()
