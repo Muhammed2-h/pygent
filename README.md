@@ -1,17 +1,17 @@
 # Pygent
 
-A production-quality, multi-provider Python AI agent with persistent memory — built with boring, readable, maintainable Python.
+A production-quality, browser-control Python AI agent with persistent memory — built with boring, readable, maintainable Python.
 
-No LangChain. No CrewAI. No AutoGen. No LiteLLM. Just clean code.
+No LangChain. No CrewAI. No AutoGen. Just clean code.
 
 ## Features
 
-- **Multi-Provider Support** — OpenAI (default), with an abstract base for Anthropic, Gemini, NVIDIA NIM, and custom OpenAI-compatible APIs
+- **Browser Control** — Autonomous web interaction driven by OpenAI
 - **Persistent Memory** — SQLite FTS5 full-text search for long-term observation storage across sessions
 - **Privacy Scrubbing** — Automatically redacts API keys and secrets before storing to memory
 - **Tool Use** — Safe built-in tools (calculator, time, environment info) with an extensible registry
 - **Conversational Context** — Maintains conversation history within a session and augments prompts with relevant memory
-- **Minimal Dependencies** — Only `openai`, `anthropic`, `google-genai`, `pydantic`, `python-dotenv`, `httpx`
+- **Minimal Dependencies** — Built primarily on `openai`, `pydantic`, and `python-dotenv`
 
 ## Architecture
 
@@ -33,7 +33,7 @@ main.py              → CLI entry point, REPL loop, diagnostics
 ## Requirements
 
 - **Python 3.11+**
-- An OpenAI API key (other providers coming soon)
+- An OpenAI API key
 
 ## Installation
 
@@ -70,9 +70,6 @@ Edit `.env` with your keys:
 
 ```env
 OPENAI_API_KEY=sk-your-key-here
-ANTHROPIC_API_KEY=             # Optional
-GEMINI_API_KEY=                # Optional
-DEFAULT_PROVIDER=openai
 DEFAULT_MODEL=gpt-4o
 MAX_AGENT_STEPS=8
 ```
@@ -174,7 +171,7 @@ self.tools["weather"] = tool_weather
 Pygent uses **SQLite FTS5** for persistent, provider-independent memory:
 
 - **Observations** are stored automatically after each user turn
-- **Privacy filter** scrubs API keys (OpenAI `sk-*`, Gemini `AIzaSy*`) before storage
+- **Privacy filter** scrubs API keys (OpenAI `sk-*`) before storage
 - **Full-text search** retrieves relevant context and injects it into the system prompt
 - **Supersede support** allows marking old memories as outdated
 - Database stored at `~/.agent_memory.db` (outside the repo)
@@ -215,9 +212,6 @@ All 34 tests cover:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `OPENAI_API_KEY` | — | Your OpenAI API key |
-| `ANTHROPIC_API_KEY` | — | Your Anthropic API key (optional) |
-| `GEMINI_API_KEY` | — | Your Google Gemini API key (optional) |
-| `DEFAULT_PROVIDER` | `openai` | Which provider to use |
 | `DEFAULT_MODEL` | `gpt-4o` | Which model to use |
 | `MAX_AGENT_STEPS` | `8` | Max tool-use loop iterations per turn |
 
