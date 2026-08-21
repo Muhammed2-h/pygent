@@ -7,12 +7,13 @@ class LoopGuard:
     def __init__(self):
         self.history = []
         
-    def add_step(self, tool_calls: List[ToolCall], errors: List[str], results: List[str]):
+    def add_step(self, tool_calls: List[ToolCall], errors: List[str], results: List[str], page_id: str = ""):
         """Records a step in the execution history."""
         self.history.append({
             "tool_calls": tool_calls,
             "errors": errors,
-            "results": results
+            "results": results,
+            "page_id": page_id
         })
 
     def get_repetition_count(self) -> int:
@@ -33,6 +34,10 @@ class LoopGuard:
         return count
         
     def _is_same_step(self, step1: dict, step2: dict) -> bool:
+        # Check page context
+        if step1.get("page_id", "") != step2.get("page_id", ""):
+            return False
+
         # Check tool calls
         tc1 = step1["tool_calls"]
         tc2 = step2["tool_calls"]

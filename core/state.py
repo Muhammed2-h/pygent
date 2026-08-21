@@ -15,9 +15,6 @@ class AgentState:
         self.max_tool_calls: int = max_tool_calls
         self.max_wall_time: float = max_wall_time
         
-        self.last_tool_calls: List[ToolCall] = []
-        self.last_errors: List[str] = []
-        
         self.strategy: str = "default"
         
         from memory.lifecycle import MemoryCheckpoint

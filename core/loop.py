@@ -85,10 +85,12 @@ class AgentLoop:
             if len(executed_tool_calls) < len(new_msg.tool_calls):
                 new_msg.tool_calls = executed_tool_calls
 
+            page_id = self._get_page_context()
             self.state.loop_guard.add_step(
                 tool_calls=executed_tool_calls,
                 errors=current_errors,
-                results=current_results
+                results=current_results,
+                page_id=page_id
             )
             
             rep_count = self.state.loop_guard.get_repetition_count()
@@ -111,26 +113,15 @@ class AgentLoop:
                         reason="Infinite loop detected."
                     )
                     if ans.lower() == "abort":
-                        limit_reason = "User aborted due to infinite loop."
-                        limit_msg = Message(role="system", content=f"{limit_reason} Please summarize the final result without calling any more tools.")
-                        self.state.messages.append(limit_msg)
-                        self.state.new_messages.append(limit_msg)
-                        
-                        final_messages_to_send = self.state.messages.copy()
-                        final_cp = self.state.checkpoint.get_checkpoint()
-                        if final_cp:
-                            final_messages_to_send.append(Message(role="system", content=final_cp))
-                        final_response = self.provider.complete(final_messages_to_send, model=current_model, tools=[])
-                        final_msg = final_response.messages[0]
-                        self.state.messages.append(final_msg)
-                        self.state.new_messages.append(final_msg)
+                        self._terminate_loop_with_summary("User aborted due to infinite loop.")
                         break
                     else:
                         user_msg = Message(role="user", content=f"User responded to loop guard: {ans}")
                         self.state.messages.append(user_msg)
                         self.state.new_messages.append(user_msg)
                 except Exception as e:
-                    pass
+                    self._terminate_loop_with_summary("Infinite loop detected and ask_user failed.")
+                    break
 
             # check limit after step
             limit_reason = None
@@ -142,23 +133,39 @@ class AgentLoop:
                 limit_reason = "Max wall time reached."
 
             if limit_reason:
-                limit_msg = Message(role="system", content=f"{limit_reason} Please summarize the final result without calling any more tools.")
-                self.state.messages.append(limit_msg)
-                self.state.new_messages.append(limit_msg)
-                
-                final_messages_to_send = self.state.messages.copy()
-                
-                # Re-fetch checkpoint in case tools updated it
-                final_cp = self.state.checkpoint.get_checkpoint()
-                if final_cp:
-                    final_messages_to_send.append(Message(role="system", content=final_cp))
-                
-                final_response = self.provider.complete(final_messages_to_send, model=current_model, tools=[])
-                final_msg = final_response.messages[0]
-                self.state.messages.append(final_msg)
-                self.state.new_messages.append(final_msg)
+                self._terminate_loop_with_summary(limit_reason)
                 break
 
             self.state.turns += 1
 
         return self.state.new_messages
+
+    def _terminate_loop_with_summary(self, reason: str):
+        limit_msg = Message(role="system", content=f"{reason} Please summarize the final result without calling any more tools.")
+        self.state.messages.append(limit_msg)
+        self.state.new_messages.append(limit_msg)
+        
+        final_messages_to_send = self.state.messages.copy()
+        final_cp = self.state.checkpoint.get_checkpoint()
+        if final_cp:
+            final_messages_to_send.append(Message(role="system", content=final_cp))
+            
+        final_response = self.provider.complete(final_messages_to_send, model=self.model, tools=[])
+        final_msg = final_response.messages[0]
+        self.state.messages.append(final_msg)
+        self.state.new_messages.append(final_msg)
+
+    def _get_page_context(self) -> str:
+        try:
+            import sys
+            if "tools.browser" in sys.modules:
+                browser = sys.modules["tools.browser"]
+                if hasattr(browser, "_session_manager") and browser._session_manager:
+                    active_tab = browser._session_manager.active_tab_id
+                    if active_tab:
+                        sessions = browser._session_manager.find_session(tab_id=active_tab)
+                        if sessions:
+                            return sessions[0].url
+        except Exception:
+            pass
+        return ""
