@@ -97,6 +97,33 @@ pwd: password=secret"""
     assert "[REDACTED_PASSWORD]" in scrubbed
 
 
+
+def test_privacy_filter_structured_formats():
+    from memory.privacy import PrivacyFilter
+
+    privacy = PrivacyFilter()
+    
+    # JSON-like
+    json_text = '{"password": "supersecret", "safe": "data", "cookie": "sessionid=123", "Authorization": "Bearer abc"}'
+    scrubbed_json = privacy.scrub(json_text)
+    assert '"password": "[REDACTED_PASSWORD]"' in scrubbed_json
+    assert '"safe": "data"' in scrubbed_json
+    assert '"cookie": "[REDACTED_COOKIE]"' in scrubbed_json
+    assert '"Authorization": "[REDACTED_AUTH_HEADER]"' in scrubbed_json
+
+    # Dict-like
+    dict_text = "{'pwd': 'supersecret', 'other': 'value', 'session_token': 'abc'}"
+    scrubbed_dict = privacy.scrub(dict_text)
+    assert "'pwd': '[REDACTED_PASSWORD]'" in scrubbed_dict
+    assert "'other': 'value'" in scrubbed_dict
+    assert "'session_token': '[REDACTED_SESSION_TOKEN]'" in scrubbed_dict
+
+    # Single-line headers (previously problematic)
+    headers = "Cookie: sessionid=123, other_header=xyz"
+    scrubbed_headers = privacy.scrub(headers)
+    assert "Cookie: [REDACTED_COOKIE]" in scrubbed_headers
+    assert ", other_header=xyz" in scrubbed_headers
+
 def test_memory_service(tmp_path):
     from memory.privacy import PrivacyFilter
     from memory.service import MemoryService
