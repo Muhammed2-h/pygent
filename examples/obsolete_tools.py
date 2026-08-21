@@ -3,7 +3,7 @@ import datetime
 import operator
 import os
 
-from .registry import tool
+from tools.registry import tool
 
 _OPERATORS = {
     ast.Add: operator.add,
