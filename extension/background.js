@@ -1,4 +1,4 @@
-const WS_URL = 'ws://127.0.0.1:18765/extension';
+const WS_URL = 'ws://127.0.0.1:18765/ws?session_id=default';
 let socket = null;
 let reconnectInterval = 1000;
 

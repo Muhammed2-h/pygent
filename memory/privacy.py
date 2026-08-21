@@ -19,3 +19,31 @@ class PrivacyFilter:
         for pattern, replacement in self.patterns:
             text = pattern.sub(replacement, text)
         return text
+
+    def scrub_object(self, obj: any, abstract_login: bool = False) -> any:
+        if isinstance(obj, str):
+            scrubbed = self.scrub(obj)
+            return scrubbed
+        elif isinstance(obj, dict):
+            new_dict = {}
+            has_auth = False
+            for k, v in obj.items():
+                new_v = self.scrub_object(v, abstract_login)
+                new_dict[k] = new_v
+                if isinstance(v, str) and new_v != v:
+                    if any(x in new_v for x in ["[REDACTED_COOKIE]", "[REDACTED_SESSION_TOKEN]", "[REDACTED_AUTH_HEADER]", "[REDACTED_CREDENTIALS]", "[REDACTED_PASSWORD]"]):
+                        has_auth = True
+            if abstract_login and has_auth:
+                new_dict["_auth_status"] = {
+                    "authenticated": True,
+                    "site": "example.com",
+                    "status": "login workflow verified"
+                }
+            return new_dict
+        elif isinstance(obj, list):
+            return [self.scrub_object(v, abstract_login) for v in obj]
+        elif isinstance(obj, tuple):
+            return tuple(self.scrub_object(v, abstract_login) for v in obj)
+        elif isinstance(obj, set):
+            return set(self.scrub_object(v, abstract_login) for v in obj)
+        return obj

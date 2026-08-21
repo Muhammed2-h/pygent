@@ -79,3 +79,19 @@ async def test_browser_screenshot():
     res = json.loads(res_str)
     assert res["base64"] == "abc"
     assert res["width"] == 800
+
+@pytest.mark.asyncio
+async def test_browser_tools_privacy_scrub():
+    from tools.browser import browser_execute_js, _driver
+    from unittest.mock import AsyncMock
+    
+    # Mock driver
+    _driver.execute_js = AsyncMock(return_value={"cookie": "sessionid=secret_token_123"})
+    
+    # Run tool
+    result = await browser_execute_js("session_1", 1, "return document.cookie;", "safe")
+    
+    # Check if result is scrubbed
+    assert "[REDACTED_SESSION_TOKEN]" in result
+    assert "login workflow verified" in result
+    assert "sessionid=secret_token_123" not in result

@@ -56,3 +56,16 @@ def test_browser_state_ignore_unknown_fields():
     
     assert state.active_tab == 5
     assert not hasattr(state, "unknown_field")
+
+def test_browser_state_privacy():
+    state = BrowserState()
+    state.update(
+        last_result={"status": "success", "cookie": "sessionid=secret_token_123"},
+        current_url="https://user:password123@example.com"
+    )
+    
+    assert "[REDACTED_SESSION_TOKEN]" in str(state.last_result)
+    assert "sessionid=secret_token_123" not in str(state.last_result)
+    
+    assert "password123" not in state.current_url
+    assert "[REDACTED_CREDENTIALS]" in state.current_url

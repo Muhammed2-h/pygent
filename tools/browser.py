@@ -11,12 +11,14 @@ from .registry import tool
 from browser.policy import BrowserPolicy, RiskLevel
 from tools.human import tool_ask_user
 
+from memory.privacy import PrivacyFilter
 
 _driver: Optional[BrowserDriver] = None
 _session_manager: Optional[BrowserSessionManager] = None
 _observer: Optional[BrowserObserver] = None
 _cdp: Optional[CDPClient] = None
 _policy = BrowserPolicy()
+_privacy = PrivacyFilter()
 
 def setup_browser_tools(
     driver: BrowserDriver,
@@ -78,7 +80,7 @@ async def browser_scan(session_id: str, tab_id: Union[int, str], max_chars: int 
         tab_id = int(tab_id)
         
     result = await _observer.scan(session_id, tab_id, options=options)
-    return json.dumps(result, indent=2)
+    return json.dumps(_privacy.scrub_object(result, abstract_login=True), indent=2)
 
 @tool(
     name="browser_execute_js",
@@ -107,7 +109,7 @@ async def browser_execute_js(session_id: str, tab_id: Union[int, str], script: s
             
     try:
         result = await _driver.execute_js(session_id, tab_id, script)
-        return json.dumps(result, indent=2)
+        return json.dumps(_privacy.scrub_object(result, abstract_login=True), indent=2)
     except Exception as e:
         return f"Error executing JS: {e}"
 
@@ -137,7 +139,7 @@ async def browser_cdp(session_id: str, tab_id: Union[int, str], method: str, par
             
     try:
         result = await _cdp.send_command(session_id, tab_id, method, params, timeout=timeout)
-        return json.dumps(result, indent=2)
+        return json.dumps(_privacy.scrub_object(result, abstract_login=True), indent=2)
     except Exception as e:
         return f"Error executing CDP command: {e}"
 
