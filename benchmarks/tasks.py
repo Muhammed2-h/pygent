@@ -24,6 +24,7 @@ class TaskCategory(str, Enum):
     ADVANCED_DOM = "advanced_dom"
     CDP = "cdp"
     RECOVERY = "recovery"
+    EVOLUTION = "evolution"
 
 
 class TaskDifficulty(str, Enum):
@@ -247,6 +248,26 @@ BENCHMARK_TASKS: list[BenchmarkTask] = [
         fixture_page="dynamic.html",
         expected_outcome={"success": True, "recovered": True},
         tags=("recovery", "error"),
+    ),
+    BenchmarkTask(
+        task_id="self_evolution_a",
+        name="Self-Evolution (Task A)",
+        description="Perform unknown browser workflow. Record skill creation.",
+        category=TaskCategory.EVOLUTION,
+        difficulty=TaskDifficulty.HARD,
+        fixture_page="form.html",
+        expected_outcome={"success": True, "skill_created": True},
+        tags=("evolution", "learning"),
+    ),
+    BenchmarkTask(
+        task_id="self_evolution_b",
+        name="Self-Evolution (Task B)",
+        description="Repeat related workflow. Expect skill reuse, fewer turns and failures.",
+        category=TaskCategory.EVOLUTION,
+        difficulty=TaskDifficulty.HARD,
+        fixture_page="form.html",
+        expected_outcome={"success": True, "skill_reused": True},
+        tags=("evolution", "reuse"),
     ),
 ]
 

@@ -25,6 +25,8 @@ class BenchmarkMetrics:
     tool_calls: int = 0
     elapsed_seconds: float = 0.0
     recovery_count: int = 0
+    skill_created: bool = False
+    skill_reused: bool = False
 
     # ------------------------------------------------------------------
     # Derived / computed helpers
@@ -38,6 +40,8 @@ class BenchmarkMetrics:
             "tool_calls": self.tool_calls,
             "elapsed_seconds": round(self.elapsed_seconds, 4),
             "recovery_count": self.recovery_count,
+            "skill_created": self.skill_created,
+            "skill_reused": self.skill_reused,
         }
 
 
@@ -59,6 +63,8 @@ class MetricsCollector:
         self._tool_calls: int = 0
         self._recovery_count: int = 0
         self._success: bool = False
+        self._skill_created: bool = False
+        self._skill_reused: bool = False
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -89,6 +95,14 @@ class MetricsCollector:
     def record_recovery(self) -> None:
         """Record a recovery event (error handled)."""
         self._recovery_count += 1
+
+    def record_skill_created(self) -> None:
+        """Record that a skill was created during the task."""
+        self._skill_created = True
+
+    def record_skill_reused(self) -> None:
+        """Record that a skill was reused during the task."""
+        self._skill_reused = True
 
     # ------------------------------------------------------------------
     # Properties
@@ -121,4 +135,6 @@ class MetricsCollector:
             tool_calls=self._tool_calls,
             elapsed_seconds=self.elapsed,
             recovery_count=self._recovery_count,
+            skill_created=self._skill_created,
+            skill_reused=self._skill_reused,
         )

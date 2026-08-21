@@ -27,10 +27,10 @@ from benchmarks.runner import BenchmarkReport, BenchmarkResult, BenchmarkRunner
 
 
 class TestBenchmarkTasks:
-    """Tests for task data structures and helpers."""
+    """Tests for the benchmark task definitions."""
 
-    def test_all_14_tasks_defined(self):
-        assert len(BENCHMARK_TASKS) == 14
+    def test_all_tasks_defined(self):
+        assert len(BENCHMARK_TASKS) == 16
 
     def test_task_ids_unique(self):
         ids = [t.task_id for t in BENCHMARK_TASKS]
@@ -52,6 +52,8 @@ class TestBenchmarkTasks:
             "handle_shadow_dom",
             "use_cdp",
             "recover_from_js_failure",
+            "self_evolution_a",
+            "self_evolution_b",
         }
         actual = {t.task_id for t in BENCHMARK_TASKS}
         assert actual == expected
@@ -178,16 +180,16 @@ class TestBenchmarkRunnerDryRun:
     async def test_dry_run_all_tasks(self):
         runner = BenchmarkRunner(live=False)
         report = await runner.run()
-        assert report.total == 14
+        assert report.total == 16
         # In dry-run with no override all tasks fail
         assert report.passed == 0
-        assert report.failed == 14
+        assert report.failed == 16
 
     @pytest.mark.asyncio
     async def test_dry_run_simulated_pass(self):
         runner = BenchmarkRunner(live=False, dry_run_result=True)
         report = await runner.run()
-        assert report.passed == 14
+        assert report.passed == 16
         assert report.success_rate == 1.0
 
     @pytest.mark.asyncio
@@ -259,6 +261,8 @@ class TestBenchmarkRunnerLive:
         turns: int = 2,
         tools: int = 4,
         recoveries: int = 0,
+        skill_created: bool = False,
+        skill_reused: bool = False,
     ) -> BenchmarkTask:
         async def executor(**kwargs):
             return {
@@ -266,6 +270,8 @@ class TestBenchmarkRunnerLive:
                 "turn_count": turns,
                 "tool_calls": tools,
                 "recovery_count": recoveries,
+                "skill_created": skill_created,
+                "skill_reused": skill_reused,
             }
 
         return BenchmarkTask(
@@ -329,6 +335,18 @@ class TestBenchmarkRunnerLive:
 
         r = report.results[0]
         assert r.metrics.recovery_count == 2
+
+    @pytest.mark.asyncio
+    async def test_live_with_skills(self):
+        task = self._make_task_with_executor(
+            success=True, turns=4, tools=8, skill_created=True, skill_reused=True
+        )
+        runner = BenchmarkRunner(tasks=[task], live=True)
+        report = await runner.run()
+
+        r = report.results[0]
+        assert r.metrics.skill_created is True
+        assert r.metrics.skill_reused is True
 
 
 # ======================================================================

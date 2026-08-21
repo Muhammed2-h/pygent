@@ -246,12 +246,19 @@ class BenchmarkRunner:
             turn_count = result_dict.get("turn_count", 1)
             tool_calls = result_dict.get("tool_calls", 1)
             recovery_count = result_dict.get("recovery_count", 0)
+            skill_created = result_dict.get("skill_created", False)
+            skill_reused = result_dict.get("skill_reused", False)
 
             for _ in range(turn_count):
                 collector.record_turn()
             collector.record_tool_call(tool_calls)
             for _ in range(recovery_count):
                 collector.record_recovery()
+            
+            if skill_created:
+                collector.record_skill_created()
+            if skill_reused:
+                collector.record_skill_reused()
 
             collector.stop(success=success)
             return BenchmarkResult(
