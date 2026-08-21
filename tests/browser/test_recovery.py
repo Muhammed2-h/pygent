@@ -17,6 +17,8 @@ async def test_recovery_transport_disconnect(browser_env):
     if not resp.ok:
         assert "No tab with id" in resp.error or "Missing" in resp.error or "not" in resp.error.lower()
     else:
-        assert resp.data.get("__pygent_error") is True
-        err = resp.data.get("message", "")
+        data = resp.data or {}
+        assert isinstance(data, dict), f"Expected dict, got {type(data)}"
+        assert data.get("__pygent_error") is True
+        err = data.get("message", "")
         assert "No tab with id" in err or "Missing" in err or "not" in err.lower()
