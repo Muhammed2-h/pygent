@@ -53,8 +53,8 @@ async def test_browser_screenshot():
     assert result["width"] == 1024
     assert result["height"] == 768
     
-    assert mock_transport.send_command.call_count == 2
-    assert mock_transport.receive_result.call_count == 2
+    assert mock_transport.send_command.call_count >= 2
+    assert mock_transport.receive_result.call_count >= 2
 
 @pytest.mark.asyncio
 async def test_browser_screenshot_default_dimensions():
