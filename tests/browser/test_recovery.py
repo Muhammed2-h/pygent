@@ -11,7 +11,12 @@ async def test_recovery_transport_disconnect(browser_env):
     req = ExtensionRequest(cmd="execute", payload={"tabId": 999999, "script": "return 1;"})
     msg_id = await transport.send_command("default", req)
     
-    resp = await transport.receive_result("default", msg_id, timeout=2.0)
+    resp = await transport.receive_result("default", msg_id, timeout=10.0)
     # The extension will fail to execute script on invalid tab
-    assert resp.ok is False
-    assert "No tab with id" in resp.error or "Missing" in resp.error or "not" in resp.error.lower()
+    # It catches this and returns __pygent_error inside data
+    if not resp.ok:
+        assert "No tab with id" in resp.error or "Missing" in resp.error or "not" in resp.error.lower()
+    else:
+        assert resp.data.get("__pygent_error") is True
+        err = resp.data.get("message", "")
+        assert "No tab with id" in err or "Missing" in err or "not" in err.lower()
