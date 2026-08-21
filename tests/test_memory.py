@@ -69,6 +69,33 @@ def test_privacy_filter():
     assert "[REDACTED_GEMINI_KEY]" in scrubbed
     assert "normal text" in scrubbed
 
+def test_privacy_filter_expanded():
+    from memory.privacy import PrivacyFilter
+
+    privacy = PrivacyFilter()
+    text = """anthropic: sk-ant-api03-abcdef1234567890abcdef
+bearer: Bearer token123
+cookie: Set-Cookie: sessionid=123
+session: session_token=abc
+auth: Authorization: Basic abc
+url: https://user:pass@example.com
+pwd: password=secret"""
+    scrubbed = privacy.scrub(text)
+    assert "sk-ant" not in scrubbed
+    assert "[REDACTED_ANTHROPIC_KEY]" in scrubbed
+    assert "token123" not in scrubbed
+    assert "[REDACTED_BEARER_TOKEN]" in scrubbed
+    assert "sessionid=123" not in scrubbed
+    assert "[REDACTED_COOKIE]" in scrubbed
+    assert "session_token=abc" not in scrubbed
+    assert "[REDACTED_SESSION_TOKEN]" in scrubbed
+    assert "Basic abc" not in scrubbed
+    assert "[REDACTED_AUTH_HEADER]" in scrubbed
+    assert "user:pass" not in scrubbed
+    assert "[REDACTED_CREDENTIALS]" in scrubbed
+    assert "secret" not in scrubbed
+    assert "[REDACTED_PASSWORD]" in scrubbed
+
 
 def test_memory_service(tmp_path):
     from memory.privacy import PrivacyFilter
