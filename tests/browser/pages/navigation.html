@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navigation Test Page</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        nav { background: #f5f5f5; padding: 10px; margin-bottom: 20px; }
+        nav a { margin-right: 12px; }
+        .section { margin-bottom: 40px; padding: 20px; border: 1px solid #ddd; }
+        #location-display { font-family: monospace; background: #eee; padding: 8px; margin: 10px 0; }
+        .back-to-top { position: fixed; bottom: 20px; right: 20px; }
+    </style>
+</head>
+<body>
+    <h1 id="top">Navigation Test Page</h1>
+
+    <!-- Navigation bar with internal links -->
+    <nav id="main-nav">
+        <a href="#section-1" id="nav-section1">Section 1</a>
+        <a href="#section-2" id="nav-section2">Section 2</a>
+        <a href="#section-3" id="nav-section3">Section 3</a>
+        <a href="basic.html" id="nav-basic">Basic Page</a>
+        <a href="form.html" id="nav-form">Form Page</a>
+        <a href="https://example.com" id="nav-external" target="_blank" rel="noopener">External</a>
+    </nav>
+
+    <!-- Current location display -->
+    <div id="location-display"></div>
+
+    <!-- History API controls -->
+    <div style="margin: 10px 0;">
+        <button id="push-state-btn" onclick="pushState()">Push State</button>
+        <button id="replace-state-btn" onclick="replaceState()">Replace State</button>
+        <button id="back-btn" onclick="history.back()">Back</button>
+        <button id="forward-btn" onclick="history.forward()">Forward</button>
+        <span id="history-status"></span>
+    </div>
+
+    <!-- Anchor sections -->
+    <div class="section" id="section-1">
+        <h2>Section 1</h2>
+        <p>Content for section 1. This is used for testing anchor navigation.</p>
+        <a href="#section-2" id="link-to-section2">Go to Section 2</a>
+    </div>
+
+    <div class="section" id="section-2">
+        <h2>Section 2</h2>
+        <p>Content for section 2.</p>
+        <a href="#section-3" id="link-to-section3">Go to Section 3</a>
+        <br>
+        <a href="#top" id="link-to-top">Back to top</a>
+    </div>
+
+    <div class="section" id="section-3">
+        <h2>Section 3</h2>
+        <p>Content for section 3.</p>
+
+        <!-- Programmatic navigation -->
+        <button id="js-navigate-btn" onclick="jsNavigate()">Navigate via JS</button>
+        <button id="js-assign-btn" onclick="jsAssign()">location.assign</button>
+    </div>
+
+    <!-- Target page for JS navigation -->
+    <div class="section" id="nav-target" style="display:none;">
+        <h2>Navigation Target</h2>
+        <p id="nav-target-text">You arrived here via JavaScript navigation.</p>
+    </div>
+
+    <!-- Meta refresh test (disabled by default, uncomment to test) -->
+    <!-- <meta http-equiv="refresh" content="5;url=basic.html"> -->
+
+    <a href="#top" class="back-to-top" id="back-to-top-link">↑ Top</a>
+
+    <script>
+        // Display current location
+        function updateLocationDisplay() {
+            document.getElementById('location-display').textContent =
+                'Location: ' + window.location.href + ' | Hash: ' + window.location.hash;
+        }
+        updateLocationDisplay();
+
+        // Update on hash change
+        window.addEventListener('hashchange', function() {
+            updateLocationDisplay();
+        });
+
+        // Update on popstate
+        window.addEventListener('popstate', function(e) {
+            updateLocationDisplay();
+            document.getElementById('history-status').textContent =
+                'Popstate: ' + JSON.stringify(e.state);
+        });
+
+        var stateCounter = 0;
+
+        function pushState() {
+            stateCounter++;
+            var state = { page: stateCounter };
+            history.pushState(state, '', '?page=' + stateCounter);
+            updateLocationDisplay();
+            document.getElementById('history-status').textContent = 'Pushed: page=' + stateCounter;
+        }
+
+        function replaceState() {
+            var state = { replaced: true, page: stateCounter };
+            history.replaceState(state, '', '?replaced=' + stateCounter);
+            updateLocationDisplay();
+            document.getElementById('history-status').textContent = 'Replaced: page=' + stateCounter;
+        }
+
+        function jsNavigate() {
+            document.getElementById('nav-target').style.display = 'block';
+            document.getElementById('nav-target-text').textContent = 'Navigated via JS at ' + new Date().toISOString();
+            window.location.hash = 'nav-target';
+        }
+
+        function jsAssign() {
+            // Navigate to basic.html using location.assign
+            window.location.assign('basic.html');
+        }
+    </script>
+</body>
+</html>

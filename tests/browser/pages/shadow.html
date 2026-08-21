@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow DOM Test Page</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .section { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; }
+        h2 { margin-top: 0; }
+    </style>
+</head>
+<body>
+    <h1>Shadow DOM Test Page</h1>
+
+    <!-- Open Shadow DOM -->
+    <div class="section">
+        <h2>Open Shadow DOM</h2>
+        <div id="open-shadow-host"></div>
+    </div>
+
+    <!-- Closed Shadow DOM -->
+    <div class="section">
+        <h2>Closed Shadow DOM</h2>
+        <div id="closed-shadow-host"></div>
+        <p id="closed-info">The closed shadow root is not accessible via element.shadowRoot</p>
+    </div>
+
+    <!-- Nested Shadow DOM -->
+    <div class="section">
+        <h2>Nested Shadow DOM</h2>
+        <div id="nested-shadow-host"></div>
+    </div>
+
+    <!-- Shadow DOM with slots -->
+    <div class="section">
+        <h2>Shadow DOM with Slots</h2>
+        <div id="slot-host">
+            <span slot="title">Slotted Title</span>
+            <span slot="content">Slotted Content</span>
+            <span>Default slot content</span>
+        </div>
+    </div>
+
+    <!-- Shadow DOM with events -->
+    <div class="section">
+        <h2>Shadow DOM with Events</h2>
+        <div id="event-shadow-host"></div>
+        <p id="shadow-event-result">No event yet</p>
+    </div>
+
+    <!-- Shadow DOM with form -->
+    <div class="section">
+        <h2>Shadow DOM with Form</h2>
+        <div id="form-shadow-host"></div>
+        <p id="shadow-form-result"></p>
+    </div>
+
+    <script>
+        // Open Shadow DOM
+        (function() {
+            var host = document.getElementById('open-shadow-host');
+            var shadow = host.attachShadow({ mode: 'open' });
+            shadow.innerHTML = '<style>p { color: blue; } .shadow-item { padding: 4px; }</style>' +
+                '<p id="shadow-text">I am inside an open shadow DOM</p>' +
+                '<div class="shadow-item" id="shadow-item-1">Shadow Item 1</div>' +
+                '<div class="shadow-item" id="shadow-item-2">Shadow Item 2</div>' +
+                '<button id="shadow-btn">Shadow Button</button>';
+
+            shadow.getElementById('shadow-btn').addEventListener('click', function() {
+                shadow.getElementById('shadow-text').textContent = 'Shadow button clicked!';
+            });
+        })();
+
+        // Closed Shadow DOM
+        (function() {
+            var host = document.getElementById('closed-shadow-host');
+            var shadow = host.attachShadow({ mode: 'closed' });
+            shadow.innerHTML = '<p id="closed-shadow-text">I am inside a closed shadow DOM</p>' +
+                '<button id="closed-shadow-btn">Closed Shadow Button</button>';
+        })();
+
+        // Nested Shadow DOM
+        (function() {
+            var host = document.getElementById('nested-shadow-host');
+            var outerShadow = host.attachShadow({ mode: 'open' });
+            outerShadow.innerHTML = '<p id="outer-shadow-text">Outer shadow content</p>' +
+                '<div id="inner-host"></div>';
+
+            var innerHost = outerShadow.getElementById('inner-host');
+            var innerShadow = innerHost.attachShadow({ mode: 'open' });
+            innerShadow.innerHTML = '<p id="inner-shadow-text">Inner shadow content</p>' +
+                '<span id="inner-shadow-span">Deeply nested element</span>';
+        })();
+
+        // Shadow DOM with slots
+        (function() {
+            var host = document.getElementById('slot-host');
+            var shadow = host.attachShadow({ mode: 'open' });
+            shadow.innerHTML = '<div id="slot-container">' +
+                '<h3><slot name="title">Default Title</slot></h3>' +
+                '<p><slot name="content">Default Content</slot></p>' +
+                '<div><slot>Default slot</slot></div>' +
+                '</div>';
+        })();
+
+        // Shadow DOM with events
+        (function() {
+            var host = document.getElementById('event-shadow-host');
+            var shadow = host.attachShadow({ mode: 'open' });
+            shadow.innerHTML = '<button id="event-shadow-btn">Click for Event</button>';
+
+            shadow.getElementById('event-shadow-btn').addEventListener('click', function() {
+                document.getElementById('shadow-event-result').textContent = 'Shadow event fired!';
+            });
+        })();
+
+        // Shadow DOM with form
+        (function() {
+            var host = document.getElementById('form-shadow-host');
+            var shadow = host.attachShadow({ mode: 'open' });
+            shadow.innerHTML = '<form id="shadow-form">' +
+                '<input type="text" id="shadow-input" placeholder="Shadow input">' +
+                '<button type="button" id="shadow-submit">Submit</button>' +
+                '</form>';
+
+            shadow.getElementById('shadow-submit').addEventListener('click', function() {
+                var val = shadow.getElementById('shadow-input').value;
+                document.getElementById('shadow-form-result').textContent = 'Shadow form: ' + val;
+            });
+        })();
+    </script>
+</body>
+</html>

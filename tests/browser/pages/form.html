@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Test Page</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; margin-bottom: 4px; font-weight: bold; }
+        #result { margin-top: 20px; padding: 10px; background: #eee; display: none; }
+    </style>
+</head>
+<body>
+    <h1>Form Test Page</h1>
+
+    <form id="test-form" onsubmit="return handleSubmit(event)">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" placeholder="Enter username" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter password">
+        </div>
+
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="user@example.com">
+        </div>
+
+        <div class="form-group">
+            <label for="age">Age</label>
+            <input type="number" id="age" name="age" min="0" max="150">
+        </div>
+
+        <div class="form-group">
+            <label for="color">Favorite Color</label>
+            <select id="color" name="color">
+                <option value="">-- Select --</option>
+                <option value="red">Red</option>
+                <option value="green">Green</option>
+                <option value="blue">Blue</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="multi-select">Languages</label>
+            <select id="multi-select" name="languages" multiple size="3">
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+                <option value="rust">Rust</option>
+                <option value="go">Go</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Agree to terms</label>
+            <input type="checkbox" id="terms" name="terms" value="agreed">
+            <label for="terms" style="display:inline">I agree</label>
+        </div>
+
+        <div class="form-group">
+            <label>Subscribe to newsletter</label>
+            <input type="checkbox" id="newsletter" name="newsletter" value="yes" checked>
+            <label for="newsletter" style="display:inline">Yes, subscribe</label>
+        </div>
+
+        <div class="form-group">
+            <label>Gender</label>
+            <input type="radio" id="gender-male" name="gender" value="male">
+            <label for="gender-male" style="display:inline">Male</label>
+            <input type="radio" id="gender-female" name="gender" value="female">
+            <label for="gender-female" style="display:inline">Female</label>
+            <input type="radio" id="gender-other" name="gender" value="other">
+            <label for="gender-other" style="display:inline">Other</label>
+        </div>
+
+        <div class="form-group">
+            <label for="bio">Bio</label>
+            <textarea id="bio" name="bio" rows="3" cols="40" placeholder="Tell us about yourself"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="file-upload">Upload File</label>
+            <input type="file" id="file-upload" name="file">
+        </div>
+
+        <div class="form-group">
+            <label for="hidden-field">Hidden Field</label>
+            <input type="hidden" id="hidden-field" name="secret" value="hidden-value">
+        </div>
+
+        <button type="submit" id="submit-btn">Submit</button>
+        <button type="reset" id="reset-btn">Reset</button>
+        <button type="button" id="custom-btn" onclick="document.getElementById('result').style.display='block'; document.getElementById('result').textContent='Custom button clicked';">Custom Action</button>
+    </form>
+
+    <div id="result"></div>
+
+    <script>
+        function handleSubmit(e) {
+            e.preventDefault();
+            var form = document.getElementById('test-form');
+            var data = new FormData(form);
+            var obj = {};
+            data.forEach(function(val, key) { obj[key] = val; });
+            var resultEl = document.getElementById('result');
+            resultEl.style.display = 'block';
+            resultEl.textContent = 'Submitted: ' + JSON.stringify(obj);
+            return false;
+        }
+    </script>
+</body>
+</html>

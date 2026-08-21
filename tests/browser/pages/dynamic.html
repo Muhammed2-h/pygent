@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Content Test Page</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .dynamic-item { padding: 8px; margin: 4px 0; background: #f0f0f0; border-left: 3px solid #333; }
+        #lazy-container { min-height: 50px; border: 1px dashed #ccc; padding: 10px; margin: 10px 0; }
+        #counter { font-size: 24px; font-weight: bold; }
+        .loaded { color: green; }
+        .pending { color: orange; }
+    </style>
+</head>
+<body>
+    <h1>Dynamic Content Test Page</h1>
+
+    <!-- Delayed content: appears after 500ms -->
+    <div id="delayed-container">
+        <p class="pending" id="delayed-status">Loading...</p>
+    </div>
+
+    <!-- Content added on button click -->
+    <button id="add-item-btn" onclick="addItem()">Add Item</button>
+    <div id="item-list"></div>
+
+    <!-- Counter that updates every 200ms -->
+    <div>
+        <span>Counter: </span><span id="counter">0</span>
+    </div>
+
+    <!-- Lazy-loaded content (simulates fetch) -->
+    <div id="lazy-container">
+        <p id="lazy-status">Not loaded yet</p>
+    </div>
+    <button id="load-data-btn" onclick="loadData()">Load Data</button>
+
+    <!-- Element that appears after multiple stages -->
+    <div id="staged-container">
+        <p id="stage-status">Stage 0</p>
+    </div>
+
+    <!-- MutationObserver test target -->
+    <div id="mutation-target"></div>
+
+    <script>
+        var itemCount = 0;
+        var counterValue = 0;
+
+        // Delayed content: appears after 500ms
+        setTimeout(function() {
+            var container = document.getElementById('delayed-container');
+            container.innerHTML = '<p class="loaded" id="delayed-status">Content loaded!</p>' +
+                '<div class="dynamic-item" id="delayed-item-1">Delayed Item 1</div>' +
+                '<div class="dynamic-item" id="delayed-item-2">Delayed Item 2</div>';
+        }, 500);
+
+        // Counter updates every 200ms, stops at 10
+        var counterInterval = setInterval(function() {
+            counterValue++;
+            document.getElementById('counter').textContent = counterValue;
+            if (counterValue >= 10) {
+                clearInterval(counterInterval);
+            }
+        }, 200);
+
+        // Staged content: progresses through stages
+        var stage = 0;
+        var stageInterval = setInterval(function() {
+            stage++;
+            document.getElementById('stage-status').textContent = 'Stage ' + stage;
+            if (stage >= 3) {
+                clearInterval(stageInterval);
+                document.getElementById('stage-status').textContent = 'Stage 3 - Complete';
+                document.getElementById('stage-status').classList.add('loaded');
+            }
+        }, 300);
+
+        // Add item on click
+        function addItem() {
+            itemCount++;
+            var div = document.createElement('div');
+            div.className = 'dynamic-item';
+            div.id = 'item-' + itemCount;
+            div.textContent = 'Dynamic Item ' + itemCount;
+            document.getElementById('item-list').appendChild(div);
+        }
+
+        // Simulate async data loading
+        function loadData() {
+            document.getElementById('lazy-status').textContent = 'Loading...';
+            setTimeout(function() {
+                var container = document.getElementById('lazy-container');
+                container.innerHTML = '<p id="lazy-status" class="loaded">Data loaded!</p>' +
+                    '<ul id="lazy-list">' +
+                    '<li>Record A</li>' +
+                    '<li>Record B</li>' +
+                    '<li>Record C</li>' +
+                    '</ul>';
+            }, 400);
+        }
+
+        // MutationObserver test: add child after 800ms
+        setTimeout(function() {
+            var target = document.getElementById('mutation-target');
+            var el = document.createElement('div');
+            el.id = 'mutated-child';
+            el.textContent = 'I was added dynamically';
+            target.appendChild(el);
+        }, 800);
+    </script>
+</body>
+</html>

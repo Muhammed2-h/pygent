@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Test Page</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        .highlight { background-color: yellow; }
+        #status { color: green; }
+    </style>
+</head>
+<body>
+    <h1 id="main-heading">Basic Test Page</h1>
+    <h2 id="sub-heading">Sub Heading</h2>
+
+    <p id="intro">This is a simple test page with various HTML elements.</p>
+    <p class="highlight">This paragraph is highlighted.</p>
+
+    <a id="link-external" href="https://example.com">External Link</a>
+    <a id="link-internal" href="navigation.html">Internal Link</a>
+
+    <ul id="list">
+        <li>Item 1</li>
+        <li>Item 2</li>
+        <li>Item 3</li>
+    </ul>
+
+    <div id="content-block">
+        <span id="nested-span">Nested content inside a div.</span>
+    </div>
+
+    <button id="btn" onclick="document.getElementById('status').textContent = 'Button clicked!'">Click Me</button>
+    <p id="status"></p>
+
+    <img id="test-img" src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" alt="Test Image" width="1" height="1">
+
+    <table id="data-table">
+        <thead>
+            <tr><th>Name</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+            <tr><td>Alpha</td><td>1</td></tr>
+            <tr><td>Beta</td><td>2</td></tr>
+        </tbody>
+    </table>
+</body>
+</html>

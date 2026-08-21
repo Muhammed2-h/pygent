@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iframe Test Page</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        iframe { border: 2px solid #333; margin: 10px 0; display: block; }
+        .iframe-section { margin-bottom: 20px; }
+        h2 { border-bottom: 1px solid #ccc; padding-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <h1>Iframe Test Page</h1>
+
+    <!-- Basic iframe with srcdoc -->
+    <div class="iframe-section">
+        <h2>Basic Iframe</h2>
+        <iframe id="basic-iframe" width="400" height="100"
+            srcdoc="<html><body><h2 id='iframe-heading'>Hello from iframe</h2><p id='iframe-text'>This is inside an iframe.</p><button id='iframe-btn' onclick='document.getElementById(&quot;iframe-text&quot;).textContent = &quot;Button clicked!&quot;'>Click me</button></body></html>"
+            title="Basic iframe">
+        </iframe>
+    </div>
+
+    <!-- Iframe with a form -->
+    <div class="iframe-section">
+        <h2>Form Iframe</h2>
+        <iframe id="form-iframe" width="400" height="150"
+            srcdoc="<html><body><form id='iframe-form'><input type='text' id='iframe-input' name='data' placeholder='Type here'><button type='button' id='iframe-submit' onclick='document.getElementById(&quot;iframe-result&quot;).textContent = document.getElementById(&quot;iframe-input&quot;).value'>Submit</button></form><p id='iframe-result'></p></body></html>"
+            title="Form iframe">
+        </iframe>
+    </div>
+
+    <!-- Nested iframe (iframe inside an iframe) -->
+    <div class="iframe-section">
+        <h2>Nested Iframe</h2>
+        <iframe id="outer-iframe" width="500" height="200"
+            srcdoc="<html><body><h3>Outer iframe</h3><iframe id='inner-iframe' width='300' height='80' srcdoc='<html><body><p id=&quot;inner-text&quot;>Inner iframe content</p></body></html>' title='Inner iframe'></iframe></body></html>"
+            title="Outer iframe">
+        </iframe>
+    </div>
+
+    <!-- Hidden iframe -->
+    <div class="iframe-section">
+        <h2>Hidden Iframe</h2>
+        <iframe id="hidden-iframe" width="0" height="0" style="display:none"
+            srcdoc="<html><body><p id='hidden-content'>I am hidden</p></body></html>"
+            title="Hidden iframe">
+        </iframe>
+    </div>
+
+    <!-- Dynamically created iframe -->
+    <div class="iframe-section">
+        <h2>Dynamic Iframe</h2>
+        <button id="create-iframe-btn" onclick="createIframe()">Create Iframe</button>
+        <div id="dynamic-iframe-container"></div>
+    </div>
+
+    <!-- Iframe communication (postMessage) -->
+    <div class="iframe-section">
+        <h2>Cross-frame Communication</h2>
+        <iframe id="message-iframe" width="400" height="100"
+            srcdoc="<html><body><p id='msg-display'>Waiting for message...</p><script>window.addEventListener('message', function(e) { document.getElementById('msg-display').textContent = 'Received: ' + e.data; });</script></body></html>"
+            title="Message iframe">
+        </iframe>
+        <button id="send-message-btn" onclick="sendMessageToIframe()">Send Message to Iframe</button>
+        <p id="parent-result"></p>
+    </div>
+
+    <script>
+        function createIframe() {
+            var iframe = document.createElement('iframe');
+            iframe.id = 'dynamic-iframe';
+            iframe.width = '400';
+            iframe.height = '80';
+            iframe.srcdoc = '<html><body><p id="dynamic-content">Dynamically created iframe</p></body></html>';
+            iframe.title = 'Dynamic iframe';
+            document.getElementById('dynamic-iframe-container').appendChild(iframe);
+        }
+
+        function sendMessageToIframe() {
+            var iframe = document.getElementById('message-iframe');
+            iframe.contentWindow.postMessage('Hello from parent!', '*');
+            document.getElementById('parent-result').textContent = 'Message sent!';
+        }
+
+        // Listen for messages from iframes
+        window.addEventListener('message', function(e) {
+            document.getElementById('parent-result').textContent = 'Reply: ' + e.data;
+        });
+    </script>
+</body>
+</html>
