@@ -17,7 +17,10 @@ class MockEnvironmentManager:
 
 class MockMemoryService:
     def get_relevant_skills(self, query):
-        return [{"name": "grep_search", "content": "Use grep to search files"}]
+        return [
+            {"name": "grep_search", "content": "Use grep to search files"},
+            {"name": "test_prereq", "content": "Skill with prerequisites", "prerequisites": "requires Chrome extension"}
+        ]
 
 def test_context_builder_basic():
     builder = ContextBuilder()
@@ -64,6 +67,8 @@ def test_context_builder_with_all_components():
     
     assert "Top Skills:" in sys_content
     assert "- grep_search: Use grep to search files" in sys_content
+    assert "- test_prereq: Skill with prerequisites" in sys_content
+    assert "Prerequisites: requires Chrome extension" in sys_content
     
     assert "Working Checkpoint:\nMy checkpoint" in sys_content
     

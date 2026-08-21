@@ -57,7 +57,14 @@ class ContextBuilder:
         # 3. Top skills
         if self.memory_service and hasattr(self.memory_service, 'get_relevant_skills'):
             skills = self.memory_service.get_relevant_skills(user_input)
-            skill_texts = [f"- {s.get('name', 'skill')}: {s.get('content')}" for s in skills[:3] if s.get('content')]
+            skill_texts = []
+            for s in skills[:3]:
+                if s.get('content'):
+                    text = f"- {s.get('name', 'skill')}: {s.get('content')}"
+                    prereqs = s.get('prerequisites')
+                    if prereqs:
+                        text += f"\n  Prerequisites: {prereqs}"
+                    skill_texts.append(text)
             if skill_texts:
                 parts.append("Top Skills:\n" + "\n".join(skill_texts))
                 
