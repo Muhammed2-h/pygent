@@ -42,7 +42,10 @@ def tool_env_expand(name: str, install_command: str, reason: str = "") -> str:
     manager = EnvironmentManager(confirmation_callback=confirmation_callback, memory_store=memory_store)
     
     try:
-        success = manager.ensure_capability(name, install_command, reason)
+        success, message = manager.ensure_capability(name, install_command, reason)
+    except Exception as e:
+        success = False
+        message = str(e)
     finally:
         if memory_store:
             try:
@@ -51,6 +54,6 @@ def tool_env_expand(name: str, install_command: str, reason: str = "") -> str:
                 pass
                 
     if success:
-        return f"Successfully expanded environment with capability '{name}'."
+        return f"Successfully expanded environment with capability '{name}'.\nDetails:\n{message}"
     else:
-        return f"Failed to expand environment with capability '{name}'."
+        return f"Failed to expand environment with capability '{name}'.\nError Details:\n{message}"

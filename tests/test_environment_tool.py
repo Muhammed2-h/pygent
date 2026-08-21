@@ -5,21 +5,23 @@ from tools.environment import tool_env_expand
 def test_env_expand_success():
     with patch("tools.environment.EnvironmentManager") as MockManager:
         mock_instance = MockManager.return_value
-        mock_instance.ensure_capability.return_value = True
+        mock_instance.ensure_capability.return_value = (True, "Installed nicely")
         
         result = tool_env_expand("pytest", "pip install pytest", "testing")
         
         assert "Successfully expanded" in result
+        assert "Installed nicely" in result
         mock_instance.ensure_capability.assert_called_once_with("pytest", "pip install pytest", "testing")
 
 def test_env_expand_failure():
     with patch("tools.environment.EnvironmentManager") as MockManager:
         mock_instance = MockManager.return_value
-        mock_instance.ensure_capability.return_value = False
+        mock_instance.ensure_capability.return_value = (False, "Command failed with code 1")
         
         result = tool_env_expand("pytest", "pip install pytest", "testing")
         
         assert "Failed to expand" in result
+        assert "Command failed with code 1" in result
         mock_instance.ensure_capability.assert_called_once_with("pytest", "pip install pytest", "testing")
 
 def test_confirmation_callback():
