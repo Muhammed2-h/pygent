@@ -16,7 +16,7 @@ class AgentLoop:
         self.events = events
 
     def run(self, system_prompt: str, user_input: str) -> List[Message]:
-        self.state.messages = self.context.build(system_prompt, user_input)
+        self.state.messages = self.context.build_context(system_prompt, user_input)
         self.state.new_messages = []
         
         while not self.state.is_finished():

@@ -50,7 +50,7 @@ def main():
     memory_store = MemoryStore(str(db_path), skills_dir=skills_dir)
     memory_svc = MemoryService(memory_store, PrivacyFilter())
 
-    agent = Agent(provider, tools, config.default_model, config.max_agent_steps)
+    agent = Agent(provider, tools, config.default_model, config.max_agent_steps, memory_service=memory_svc)
 
     print("Pygent started. Type /quit to exit.")
     try:

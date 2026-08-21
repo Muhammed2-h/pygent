@@ -17,6 +17,7 @@ class Agent:
         max_steps: int = 8,
         max_tool_calls: int = 100,
         max_wall_time: float = 3600.0,
+        memory_service=None,
     ):
         self.provider = provider
         self.tools = tools
@@ -25,7 +26,7 @@ class Agent:
         self.max_tool_calls = max_tool_calls
         self.max_wall_time = max_wall_time
         
-        self.context = ContextBuilder()
+        self.context = ContextBuilder(memory_service=memory_service)
         self.events = EventBus()
         
     @property

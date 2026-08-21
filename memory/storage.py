@@ -265,7 +265,7 @@ class MemoryStore:
             """SELECT s.*
                FROM skills_fts f
                JOIN skills s ON f.rowid = s.id
-               WHERE skills_fts MATCH ?""",
+               WHERE skills_fts MATCH ? ORDER BY f.rank""",
             (query,),
         )
         results = [dict(row) for row in cursor.fetchall()]
