@@ -12,6 +12,10 @@ async def test_navigation(browser_env, local_server):
     res = await driver.execute_js(session_id, tab_id, f"window.location.href = '{local_server}/page2.html';")
     assert res["navigated"] is True
     
-    await asyncio.sleep(1)
-    tabs = await driver.enumerate_tabs(session_id)
+    for _ in range(20):
+        tabs = await driver.enumerate_tabs(session_id)
+        if any("page2.html" in t["url"] for t in tabs):
+            break
+        await asyncio.sleep(0.1)
+    
     assert any("page2.html" in t["url"] for t in tabs)

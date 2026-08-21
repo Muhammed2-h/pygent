@@ -75,13 +75,28 @@ async def browser_env():
     if not chrome_path:
         pytest.skip("Chrome not found")
 
-    ws_port = 18765
-    http_port = 18766
+    def get_free_port():
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('', 0))
+        port = s.getsockname()[1]
+        s.close()
+        return port
+
+    ws_port = get_free_port()
+    http_port = get_free_port()
     
     root_dir = Path(__file__).parent.parent.parent
-    extension_dir = root_dir / "extension"
-    if not extension_dir.exists():
+    orig_extension_dir = root_dir / "extension"
+    if not orig_extension_dir.exists():
         pytest.skip("Extension not found")
+        
+    temp_ext_dir = Path(tempfile.mkdtemp())
+    shutil.copytree(orig_extension_dir, temp_ext_dir, dirs_exist_ok=True)
+    
+    bg_js = temp_ext_dir / "background.js"
+    content = bg_js.read_text()
+    content = content.replace("ws://127.0.0.1:18765/ws?session_id=default", f"ws://127.0.0.1:{ws_port}/ws?session_id=default")
+    bg_js.write_text(content)
         
     transport = BrowserTransport(ws_port=ws_port, http_port=http_port)
     session_id = "default"
@@ -95,7 +110,7 @@ async def browser_env():
     
     cmd = [
         chrome_path,
-        f"--load-extension={extension_dir}",
+        f"--load-extension={temp_ext_dir}",
         f"--user-data-dir={user_data_dir}",
         "--no-first-run",
         "--no-default-browser-check",
@@ -112,9 +127,11 @@ async def browser_env():
     
     import os
     import signal
-    log_out = open("/tmp/chrome_out.log", "w")
-    log_err = open("/tmp/chrome_err.log", "w")
-    proc = subprocess.Popen(cmd, stdout=log_out, stderr=log_err, preexec_fn=os.setsid)
+    
+    log_dir = Path(tempfile.mkdtemp())
+    log_out = open(log_dir / "chrome_out.log", "w")
+    log_err = open(log_dir / "chrome_err.log", "w")
+    proc = subprocess.Popen(cmd, stdout=log_out, stderr=log_err, start_new_session=True)
     
     connected = False
     for _ in range(300):
@@ -128,6 +145,8 @@ async def browser_env():
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
         except Exception:
             proc.kill()
+        log_out.close()
+        log_err.close()
         await transport.stop()
         pytest.fail("Browser did not connect")
         
@@ -146,5 +165,9 @@ async def browser_env():
     except Exception:
         proc.kill()
         
+    log_out.close()
+    log_err.close()
     shutil.rmtree(user_data_dir, ignore_errors=True)
+    shutil.rmtree(temp_ext_dir, ignore_errors=True)
+    shutil.rmtree(log_dir, ignore_errors=True)
     await transport.stop()
