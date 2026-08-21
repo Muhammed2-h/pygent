@@ -42,31 +42,64 @@ class OpenAIProvider(BaseProvider):
         if tools:
             kwargs["tools"] = tools
 
-        max_retries = 3
-        retry_delay = 1
-        
-        for attempt in range(max_retries):
-            try:
-                response = self.client.chat.completions.create(**kwargs)
+
+        while True:
+            max_retries = 3
+            retry_delay = 1
+            success = False
+            caught_e = None
+            for attempt in range(max_retries):
+                try:
+                    response = self.client.chat.completions.create(**kwargs)
+                    success = True
+                    break
+                except (openai.RateLimitError, openai.APIConnectionError) as e:
+                    if attempt == max_retries - 1:
+                        raise
+                    time.sleep(retry_delay)
+                    retry_delay *= 2
+                except openai.BadRequestError as e:
+                    if "context_length_exceeded" in str(e) or (hasattr(e, "code") and e.code == "context_length_exceeded"):
+                        caught_e = e
+                        success = False
+                        break
+                    else:
+                        raise
+
+            if success:
                 break
-            except (openai.RateLimitError, openai.APIConnectionError) as e:
-                if attempt == max_retries - 1:
-                    raise
-                time.sleep(retry_delay)
-                retry_delay *= 2
-            except openai.BadRequestError as e:
-                if "context_length_exceeded" in str(e) or (hasattr(e, "code") and e.code == "context_length_exceeded"):
-                    removed = False
-                    for i, msg in enumerate(kwargs["messages"]):
-                        if msg["role"] != "system":
-                            kwargs["messages"].pop(i)
-                            removed = True
-                            break
-                    if not removed:
-                        raise e
-                    continue
-                else:
-                    raise
+                
+            if caught_e:
+                removed = False
+                first_non_system_idx = -1
+                for i, msg in enumerate(kwargs["messages"]):
+                    if msg["role"] != "system":
+                        first_non_system_idx = i
+                        break
+                
+                if first_non_system_idx != -1:
+                    msg_to_drop = kwargs["messages"][first_non_system_idx]
+                    dropped_tool_call_ids = set()
+                    if "tool_calls" in msg_to_drop and msg_to_drop["tool_calls"]:
+                        for tc in msg_to_drop["tool_calls"]:
+                            dropped_tool_call_ids.add(tc["id"])
+                    
+                    kwargs["messages"].pop(first_non_system_idx)
+                    removed = True
+                    
+                    if dropped_tool_call_ids:
+                        new_messages = []
+                        for msg in kwargs["messages"]:
+                            if msg["role"] == "tool" and msg.get("tool_call_id") in dropped_tool_call_ids:
+                                continue
+                            new_messages.append(msg)
+                        kwargs["messages"] = new_messages
+                        
+                if not removed:
+                    raise caught_e
+            else:
+                # Should not reach here because network errors raise on exhaustion
+                raise RuntimeError("Failed to get response")
 
         choice = response.choices[0]
 

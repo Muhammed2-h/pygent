@@ -1,5 +1,5 @@
 import json
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import pytest
 from models import Message, ToolCall, AgentResponse
 from providers.base import BaseProvider
@@ -224,7 +224,8 @@ def test_openai_provider_malformed_json_tool_call():
     assert tc.name == "error"
     assert tc.arguments == {"error": "Invalid JSON arguments"}
 
-def test_openai_provider_retries_on_rate_limit():
+@patch("time.sleep")
+def test_openai_provider_retries_on_rate_limit(mock_sleep):
     provider = OpenAIProvider("fake_key")
     mock_response = MagicMock()
     mock_choice = MagicMock()
@@ -242,6 +243,7 @@ def test_openai_provider_retries_on_rate_limit():
     assert result.messages[0].content == "Success!"
     assert mock_create.call_count == 2
 
+
 def test_openai_provider_context_overflow_truncation():
     provider = OpenAIProvider("fake_key")
     mock_response = MagicMock()
@@ -251,7 +253,7 @@ def test_openai_provider_context_overflow_truncation():
     mock_response.choices = [mock_choice]
     
     def side_effect(*args, **kwargs):
-        if len(kwargs["messages"]) > 1:
+        if len(kwargs["messages"]) > 2:
             raise openai.BadRequestError(message="context_length_exceeded", response=MagicMock(), body=None)
         return mock_response
         
@@ -259,18 +261,41 @@ def test_openai_provider_context_overflow_truncation():
     provider.client.chat.completions.create = mock_create
     
     messages = [
-        Message(role="user", content="Old message"),
+        Message(role="assistant", tool_calls=[ToolCall(id="call_abc", name="func", arguments={"a": 1})]),
+        Message(role="tool", content="tool result", tool_call_id="call_abc"),
         Message(role="user", content="New message")
     ]
     result = provider.complete(messages=messages, model="gpt-4o")
     
     assert result.messages[0].content == "Truncated Success"
+    # Should drop both the assistant tool call and the tool result
     assert mock_create.call_count == 2
-    # Verify the first message was dropped on the second call
     assert len(mock_create.call_args[1]["messages"]) == 1
     assert mock_create.call_args[1]["messages"][0]["content"] == "New message"
 
 from tools.registry import ToolRegistry, tool
+
+
+def test_openai_provider_valid_tool_call_parsing():
+    provider = OpenAIProvider("fake_key")
+    mock_tool_call = MagicMock()
+    mock_tool_call.id = "call_valid"
+    mock_tool_call.function.name = "get_weather"
+    mock_tool_call.function.arguments = '{"location": "Tokyo"}'
+    
+    mock_choice = MagicMock()
+    mock_choice.message.content = None
+    mock_choice.message.tool_calls = [mock_tool_call]
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+    
+    provider.client.chat.completions.create = MagicMock(return_value=mock_response)
+    
+    result = provider.complete(messages=[Message(role="user", content="Hi")], model="gpt-4o")
+    tc = result.messages[0].tool_calls[0]
+    assert tc.id == "call_valid"
+    assert tc.name == "get_weather"
+    assert tc.arguments == {"location": "Tokyo"}
 
 def test_openai_provider_tool_schema_generation():
     @tool(name="test_tool", description="A test tool")
