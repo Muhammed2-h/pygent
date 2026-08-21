@@ -3,7 +3,6 @@ import asyncio
 import subprocess
 import shutil
 import tempfile
-import socket
 from pathlib import Path
 
 from config import load_config
@@ -14,6 +13,7 @@ from memory.storage import MemoryStore
 from memory.privacy import PrivacyFilter
 from memory.service import MemoryService
 from tools.browser import setup_browser_tools
+from tools.registry import set_main_loop
 
 from browser.transport import BrowserTransport
 from browser.driver import BrowserDriver
@@ -42,6 +42,7 @@ def find_chrome() -> str:
     return ""
 
 async def async_start_browser_repl(db_path: str, skills_dir: str):
+    set_main_loop(asyncio.get_running_loop())
     ws_port = 18765
     http_port = 18766
 
