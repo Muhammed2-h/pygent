@@ -180,16 +180,30 @@ def compress_history(
         compressed = msg.model_copy()
         content = compressed.content or ""
 
+        def _compress_tool(text: str) -> str:
+            text = _strip_thinking(text)
+            text = _BROWSER_OBSERVATION_RE.sub("[browser observation removed]", text)
+            return COMPRESSED_MARKER + _truncate(text, max_tool_result_len)
+
+        def _compress_asst(text: str) -> str:
+            text = _strip_thinking(text)
+            return COMPRESSED_MARKER + _truncate(text, max_assistant_content_len)
+
+        def _compress_browser(text: str) -> str:
+            text = _BROWSER_OBSERVATION_RE.sub("[browser observation removed]", text)
+            text = _strip_thinking(text)
+            return COMPRESSED_MARKER + _truncate(text, max_assistant_content_len)
+
         if msg.role == "tool":
-            compressed.content = _compress_tool_result(content)
+            compressed.content = _compress_tool(content)
         elif msg.role == "assistant":
             # Keep tool_calls intact – only compress the text body.
             if content:
-                compressed.content = _compress_assistant(content)
+                compressed.content = _compress_asst(content)
         elif msg.role == "user":
             # Large user messages with browser observations.
-            if len(content) > MAX_ASSISTANT_CONTENT_LEN:
-                compressed.content = _compress_browser_state(content)
+            if len(content) > max_assistant_content_len:
+                compressed.content = _compress_browser(content)
 
         result.append(compressed)
 

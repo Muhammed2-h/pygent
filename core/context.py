@@ -60,7 +60,10 @@ class ContextBuilder:
             skill_texts = []
             for s in skills[:3]:
                 if s.get('content'):
-                    text = f"- {s.get('name', 'skill')}: {s.get('content')}"
+                    content = s.get('content')
+                    if len(content) > 1000:
+                        content = content[:1000] + "... [truncated]"
+                    text = f"- {s.get('name', 'skill')}: {content}"
                     prereqs = s.get('prerequisites')
                     if prereqs:
                         text += f"\n  Prerequisites: {prereqs}"
@@ -82,7 +85,20 @@ class ContextBuilder:
             elif isinstance(browser_state, dict):
                 state_dict = browser_state
             
-            parts.append(f"Recent Browser State:\n{json.dumps(state_dict, indent=2)}")
+            def truncate_dict_strings(d, max_len=2000):
+                if isinstance(d, dict):
+                    return {k: truncate_dict_strings(v, max_len) for k, v in d.items()}
+                elif isinstance(d, list):
+                    if len(d) > 20:
+                        d = d[:20] + ["... [truncated list]"]
+                    return [truncate_dict_strings(v, max_len) for v in d]
+                elif isinstance(d, str):
+                    if len(d) > max_len:
+                        return d[:max_len] + "... [truncated]"
+                return d
+            
+            truncated_state = truncate_dict_strings(state_dict)
+            parts.append(f"Recent Browser State:\n{json.dumps(truncated_state, indent=2)}")
 
         final_system_prompt = "\n\n".join(parts).strip()
         system_msg = Message(role="system", content=final_system_prompt)
