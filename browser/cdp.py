@@ -51,10 +51,19 @@ class CDPClient:
         msg_id = await self.transport.send_command(session_id, req)
         
         effective_timeout = timeout if timeout is not None else self.default_timeout
+        import time
+        start = time.time()
         resp = await self.transport.receive_result(session_id, msg_id, timeout=effective_timeout)
+        duration = time.time() - start
+        
         self.transport.acknowledge(session_id, msg_id)
+        
+        from core.logger import browser_logger
         if not resp.ok:
+            browser_logger.error(f"CDP command {method} failed", extra={"tool": f"cdp.{method}", "status": "error", "duration": duration, "error": resp.error})
             raise RuntimeError(f"CDP command '{method}' failed: {resp.error}")
+        
+        browser_logger.info(f"CDP command {method}", extra={"tool": f"cdp.{method}", "status": "success", "duration": duration, "error": None})
         return resp.data
 
     async def send_batch(self, session_id: str, tab_id: int, commands: list[dict[str, Any]], timeout: Optional[float] = None) -> list[Any]:

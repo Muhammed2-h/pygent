@@ -10,8 +10,18 @@ class MemoryService:
         self.privacy = privacy
 
     def add(self, content: str, mem_type: str = "semantic"):
-        clean_content = self.privacy.scrub(content)
-        self.store.add_memory(clean_content, mem_type)
+        import time
+        from core.logger import memory_logger
+        start = time.time()
+        try:
+            clean_content = self.privacy.scrub(content)
+            self.store.add_memory(clean_content, mem_type)
+            duration = time.time() - start
+            memory_logger.info("Memory added", extra={"tool": "memory.add", "status": "success", "duration": duration, "error": None})
+        except Exception as e:
+            duration = time.time() - start
+            memory_logger.error("Memory add failed", extra={"tool": "memory.add", "status": "error", "duration": duration, "error": str(e)})
+            raise
 
     def _build_fts_query(self, query: str) -> str:
         stop_words = {"a", "an", "the", "and", "or", "but", "is", "are", "was", "were", "in", "on", "at", "to", "for", "with", "about", "please", "help", "me", "write", "function", "that", "can", "you", "could", "would", "how", "do", "i"}
@@ -28,13 +38,22 @@ class MemoryService:
         return " OR ".join(f'"{t}"' for t in safe_tokens)
 
     def get_context_for(self, query: str) -> str:
+        import time
+        from core.logger import memory_logger
+        start = time.time()
         fts_query = self._build_fts_query(query)
         if not fts_query:
+            duration = time.time() - start
+            memory_logger.info("Empty fts query", extra={"tool": "memory.get_context_for", "status": "success", "duration": duration, "error": None})
             return ""
 
         try:
             results = self.store.search(fts_query)
-        except Exception:
+            duration = time.time() - start
+            memory_logger.info("Search success", extra={"tool": "memory.get_context_for", "status": "success", "duration": duration, "error": None})
+        except Exception as e:
+            duration = time.time() - start
+            memory_logger.error("Search failed", extra={"tool": "memory.get_context_for", "status": "error", "duration": duration, "error": str(e)})
             return ""
 
         if not results:
@@ -46,13 +65,22 @@ class MemoryService:
         return context
 
     def get_relevant_skills(self, task: str) -> list[dict]:
+        import time
+        from core.logger import memory_logger
+        start = time.time()
         fts_query = self._build_fts_query(task)
         if not fts_query:
+            duration = time.time() - start
+            memory_logger.info("Empty fts query", extra={"tool": "memory.get_relevant_skills", "status": "success", "duration": duration, "error": None})
             return []
 
         try:
             results = self.store.search_skills(fts_query)
-        except Exception:
+            duration = time.time() - start
+            memory_logger.info("Search skills success", extra={"tool": "memory.get_relevant_skills", "status": "success", "duration": duration, "error": None})
+        except Exception as e:
+            duration = time.time() - start
+            memory_logger.error("Search skills failed", extra={"tool": "memory.get_relevant_skills", "status": "error", "duration": duration, "error": str(e)})
             return []
             
         if not results:

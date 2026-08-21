@@ -41,9 +41,17 @@ class AgentLoop:
                 
             self.events.emit(LLMRequestEvent(messages=messages_to_send))
             
+            import time
+            from core.logger import agent_logger
+            llm_start = time.time()
+            
             response = self.provider.complete(
                 messages_to_send, model=current_model, tools=self.tools.get_tool_schemas()
             )
+            
+            llm_duration = time.time() - llm_start
+            agent_logger.info("Agent LLM complete", extra={"tool": "llm", "turn": self.state.turns, "status": "success", "duration": llm_duration, "error": None})
+            
             new_msg = response.messages[0]
             
             self.events.emit(LLMResponseEvent(message=new_msg))

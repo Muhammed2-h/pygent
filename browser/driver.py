@@ -21,8 +21,11 @@ class BrowserDriver:
         msg_id = await self.transport.send_command(session_id, req)
         resp = await self.transport.receive_result(session_id, msg_id, timeout=60.0)
         self.transport.acknowledge(session_id, msg_id)
+        from core.logger import browser_logger
         if not resp.ok:
+            browser_logger.error("Failed to enumerate tabs", extra={"tool": "enumerate_tabs", "status": "error", "duration": 0.0, "error": resp.error})
             raise RuntimeError(f"Failed to enumerate tabs: {resp.error}")
+        browser_logger.info("Enumerated tabs", extra={"tool": "enumerate_tabs", "status": "success", "duration": 0.0, "error": None})
         return resp.data
 
     async def execute_js(self, session_id: str, tab_id: int, script: str) -> dict:
@@ -89,8 +92,13 @@ class BrowserDriver:
             exec_error = None
             
         if exec_error:
+            from core.logger import browser_logger
+            browser_logger.error("JavaScript execution failed", extra={"tool": "execute_js", "status": "error", "duration": 0.0, "error": exec_error})
             raise RuntimeError(exec_error)
             
+        from core.logger import browser_logger
+        browser_logger.info("JavaScript executed", extra={"tool": "execute_js", "status": "success", "duration": 0.0, "error": None})
+        
         return {
             "result": result_data,
             "navigated": navigated,
