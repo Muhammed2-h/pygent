@@ -30,7 +30,7 @@ class TestBenchmarkTasks:
     """Tests for the benchmark task definitions."""
 
     def test_all_tasks_defined(self):
-        assert len(BENCHMARK_TASKS) == 16
+        assert len(BENCHMARK_TASKS) == 21
 
     def test_task_ids_unique(self):
         ids = [t.task_id for t in BENCHMARK_TASKS]
@@ -54,9 +54,15 @@ class TestBenchmarkTasks:
             "recover_from_js_failure",
             "self_evolution_a",
             "self_evolution_b",
+            "env_package_missing",
+            "env_extension_missing",
+            "env_driver_stopped",
+            "env_port_unavailable",
+            "env_browser_closed",
         }
         actual = {t.task_id for t in BENCHMARK_TASKS}
         assert actual == expected
+
 
     def test_get_task_found(self):
         task = get_task("open_url")
@@ -180,16 +186,16 @@ class TestBenchmarkRunnerDryRun:
     async def test_dry_run_all_tasks(self):
         runner = BenchmarkRunner(live=False)
         report = await runner.run()
-        assert report.total == 16
+        assert report.total == 21
         # In dry-run with no override all tasks fail
         assert report.passed == 0
-        assert report.failed == 16
+        assert report.failed == 21
 
     @pytest.mark.asyncio
     async def test_dry_run_simulated_pass(self):
         runner = BenchmarkRunner(live=False, dry_run_result=True)
         report = await runner.run()
-        assert report.passed == 16
+        assert report.passed == 21
         assert report.success_rate == 1.0
 
     @pytest.mark.asyncio
@@ -264,6 +270,10 @@ class TestBenchmarkRunnerLive:
         skill_created: bool = False,
         skill_reused: bool = False,
         successful_path: list[str] = None,
+        detected: bool = False,
+        repaired: bool = False,
+        verified: bool = False,
+        remembered: bool = False,
         task_id: str = "mock_task",
     ) -> BenchmarkTask:
         async def executor(**kwargs):
@@ -275,6 +285,10 @@ class TestBenchmarkRunnerLive:
                 "skill_created": skill_created,
                 "skill_reused": skill_reused,
                 "successful_path": successful_path or [],
+                "detected": detected,
+                "repaired": repaired,
+                "verified": verified,
+                "remembered": remembered,
             }
 
         return BenchmarkTask(
@@ -392,6 +406,39 @@ class TestBenchmarkRunnerLive:
         assert "Task B did not have fewer failures/recoveries" in errors[1]
         assert "Task B did not record a reused skill" in errors[2]
 
+    @pytest.mark.asyncio
+    async def test_validate_environment_evolution_success(self):
+        task_1 = self._make_task_with_executor(
+            task_id="env_package_missing",
+            success=True,
+            detected=True,
+            repaired=True,
+            verified=True,
+            remembered=True
+        )
+        runner = BenchmarkRunner(tasks=[task_1], live=True)
+        report = await runner.run()
+        
+        errors = report.validate_environment_evolution()
+        assert not errors, f"Expected no errors, got: {errors}"
+
+    @pytest.mark.asyncio
+    async def test_validate_environment_evolution_fails(self):
+        task_1 = self._make_task_with_executor(
+            task_id="env_package_missing",
+            success=True,
+            detected=True,
+            repaired=False,
+            verified=True,
+            remembered=False
+        )
+        runner = BenchmarkRunner(tasks=[task_1], live=True)
+        report = await runner.run()
+        
+        errors = report.validate_environment_evolution()
+        assert len(errors) == 2
+        assert "Task env_package_missing did not record 'repaired'" in errors[0]
+        assert "Task env_package_missing did not record 'remembered'" in errors[1]
 
 # ======================================================================
 # Report

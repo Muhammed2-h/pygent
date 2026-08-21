@@ -25,6 +25,7 @@ class TaskCategory(str, Enum):
     CDP = "cdp"
     RECOVERY = "recovery"
     EVOLUTION = "evolution"
+    ENVIRONMENT_EVOLUTION = "environment_evolution"
 
 
 class TaskDifficulty(str, Enum):
@@ -268,6 +269,51 @@ BENCHMARK_TASKS: list[BenchmarkTask] = [
         fixture_page="form.html",
         expected_outcome={"success": True, "skill_reused": True},
         tags=("evolution", "reuse"),
+    ),
+    BenchmarkTask(
+        task_id="env_package_missing",
+        name="Environment Evolution - Package Missing",
+        description="Simulate missing dependency: package missing. Agent must detect, repair, verify, and remember.",
+        category=TaskCategory.ENVIRONMENT_EVOLUTION,
+        difficulty=TaskDifficulty.HARD,
+        expected_outcome={"success": True, "detected": True, "repaired": True, "verified": True, "remembered": True},
+        tags=("environment", "evolution", "package"),
+    ),
+    BenchmarkTask(
+        task_id="env_extension_missing",
+        name="Environment Evolution - Extension Missing",
+        description="Simulate missing dependency: extension missing. Agent must detect, repair, verify, and remember.",
+        category=TaskCategory.ENVIRONMENT_EVOLUTION,
+        difficulty=TaskDifficulty.HARD,
+        expected_outcome={"success": True, "detected": True, "repaired": True, "verified": True, "remembered": True},
+        tags=("environment", "evolution", "extension"),
+    ),
+    BenchmarkTask(
+        task_id="env_driver_stopped",
+        name="Environment Evolution - Driver Stopped",
+        description="Simulate missing dependency: driver stopped. Agent must detect, repair, verify, and remember.",
+        category=TaskCategory.ENVIRONMENT_EVOLUTION,
+        difficulty=TaskDifficulty.HARD,
+        expected_outcome={"success": True, "detected": True, "repaired": True, "verified": True, "remembered": True},
+        tags=("environment", "evolution", "driver"),
+    ),
+    BenchmarkTask(
+        task_id="env_port_unavailable",
+        name="Environment Evolution - Port Unavailable",
+        description="Simulate missing dependency: port unavailable. Agent must detect, repair, verify, and remember.",
+        category=TaskCategory.ENVIRONMENT_EVOLUTION,
+        difficulty=TaskDifficulty.HARD,
+        expected_outcome={"success": True, "detected": True, "repaired": True, "verified": True, "remembered": True},
+        tags=("environment", "evolution", "port"),
+    ),
+    BenchmarkTask(
+        task_id="env_browser_closed",
+        name="Environment Evolution - Browser Closed",
+        description="Simulate missing dependency: browser closed. Agent must detect, repair, verify, and remember.",
+        category=TaskCategory.ENVIRONMENT_EVOLUTION,
+        difficulty=TaskDifficulty.HARD,
+        expected_outcome={"success": True, "detected": True, "repaired": True, "verified": True, "remembered": True},
+        tags=("environment", "evolution", "browser"),
     ),
 ]
 

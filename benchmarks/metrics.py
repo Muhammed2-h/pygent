@@ -28,6 +28,10 @@ class BenchmarkMetrics:
     skill_created: bool = False
     skill_reused: bool = False
     successful_path: list[str] = field(default_factory=list)
+    detected: bool = False
+    repaired: bool = False
+    verified: bool = False
+    remembered: bool = False
 
     # ------------------------------------------------------------------
     # Derived / computed helpers
@@ -44,6 +48,10 @@ class BenchmarkMetrics:
             "skill_created": self.skill_created,
             "skill_reused": self.skill_reused,
             "successful_path": list(self.successful_path),
+            "detected": self.detected,
+            "repaired": self.repaired,
+            "verified": self.verified,
+            "remembered": self.remembered,
         }
 
 
@@ -68,6 +76,10 @@ class MetricsCollector:
         self._skill_created: bool = False
         self._skill_reused: bool = False
         self._successful_path: list[str] = []
+        self._detected: bool = False
+        self._repaired: bool = False
+        self._verified: bool = False
+        self._remembered: bool = False
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -111,6 +123,12 @@ class MetricsCollector:
         """Record the successful sequence of actions/tools used."""
         self._successful_path.extend(path)
 
+    def record_environment_evolution(self, detected: bool = False, repaired: bool = False, verified: bool = False, remembered: bool = False) -> None:
+        self._detected = detected
+        self._repaired = repaired
+        self._verified = verified
+        self._remembered = remembered
+
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
@@ -145,4 +163,8 @@ class MetricsCollector:
             skill_created=self._skill_created,
             skill_reused=self._skill_reused,
             successful_path=list(self._successful_path),
+            detected=self._detected,
+            repaired=self._repaired,
+            verified=self._verified,
+            remembered=self._remembered,
         )

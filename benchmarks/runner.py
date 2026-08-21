@@ -201,6 +201,37 @@ class BenchmarkReport:
             
         return errors
 
+    def validate_environment_evolution(self) -> list[str]:
+        """Check if environment evolution tasks met expectations.
+        Returns a list of error messages (empty if successful).
+        """
+        env_task_ids = [
+            "env_package_missing",
+            "env_extension_missing",
+            "env_driver_stopped",
+            "env_port_unavailable",
+            "env_browser_closed",
+        ]
+        
+        errors = []
+        for task_id in env_task_ids:
+            task_result = next((r for r in self.results if r.task.task_id == task_id), None)
+            if not task_result:
+                continue
+                
+            if not task_result.passed:
+                errors.append(f"Task {task_id} must pass.")
+                
+            if not task_result.metrics.detected:
+                errors.append(f"Task {task_id} did not record 'detected'.")
+            if not task_result.metrics.repaired:
+                errors.append(f"Task {task_id} did not record 'repaired'.")
+            if not task_result.metrics.verified:
+                errors.append(f"Task {task_id} did not record 'verified'.")
+            if not task_result.metrics.remembered:
+                errors.append(f"Task {task_id} did not record 'remembered'.")
+                
+        return errors
 
 class BenchmarkRunner:
     """Execute benchmark tasks and collect results.
@@ -283,6 +314,10 @@ class BenchmarkRunner:
             skill_created = result_dict.get("skill_created", False)
             skill_reused = result_dict.get("skill_reused", False)
             successful_path = result_dict.get("successful_path", [])
+            detected = result_dict.get("detected", False)
+            repaired = result_dict.get("repaired", False)
+            verified = result_dict.get("verified", False)
+            remembered = result_dict.get("remembered", False)
 
             for _ in range(turn_count):
                 collector.record_turn()
@@ -296,6 +331,13 @@ class BenchmarkRunner:
                 collector.record_skill_reused()
             if successful_path:
                 collector.record_successful_path(successful_path)
+
+            collector.record_environment_evolution(
+                detected=detected,
+                repaired=repaired,
+                verified=verified,
+                remembered=remembered,
+            )
 
             collector.stop(success=success)
             return BenchmarkResult(
