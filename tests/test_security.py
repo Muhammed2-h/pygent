@@ -3,7 +3,7 @@ import os
 import json
 from unittest.mock import patch
 
-from tools.filesystem import file_read, file_write, normalize_and_check_path
+from tools.filesystem import file_read, file_write
 from tools.code import execute_code
 from memory.privacy import PrivacyFilter
 from browser.policy import BrowserPolicy, RiskLevel
@@ -13,10 +13,6 @@ def test_secret_redaction():
     pf = PrivacyFilter()
     assert "[REDACTED_ANTHROPIC_KEY]" in pf.scrub("sk-ant-api03-12345678901234567890123")
     assert "[REDACTED_API_KEY]" in pf.scrub("sk-proj-12345678901234567890123")
-    # Bypass attempt: split key
-    # Wait, privacy filter operates on strings. If it's split, it's not a key.
-    # What if it's base64 encoded? 
-    pass
 
 # 2. Path Traversal
 def test_path_traversal():
@@ -33,15 +29,19 @@ def test_path_traversal():
 def test_arbitrary_file_execution():
     # If we execute code with cwd outside workspace, it should be denied.
     os.environ["AGENT_WORKSPACE"] = "/tmp/workspace"
-    result = execute_code("bash", "pwd", cwd="/etc")
-    assert "Access denied" in result or "Error" in result
+    result_str = execute_code("bash", "pwd", cwd="/etc")
+    res_dict = json.loads(result_str)
+    assert res_dict["error"] is not None
+    assert "Access denied" in res_dict["error"]
 
 # 4. Shell injection
 def test_shell_injection():
-    # Try to inject arguments into execute_code
-    # Since it writes to a file, injection via args shouldn't work.
-    result = execute_code("bash", "echo 'hello'")
-    assert "hello" in result
+    # Try to inject a shell command via language argument (e.g. bash; id).
+    # This should fail to find the executable, preventing execution.
+    result_str = execute_code("bash; echo 'hacked'", "echo 'hello'")
+    res_dict = json.loads(result_str)
+    assert res_dict["error"] is not None
+    assert "No such file or directory" in res_dict["error"] or "not found" in res_dict["error"].lower()
 
 # 5. Cookie leakage
 def test_cookie_leakage():
@@ -68,6 +68,11 @@ def test_confirmation_bypass():
     
     policy = BrowserPolicy()
     # Let's say they obfuscate JS. We should catch it.
-    js_code = r"window['\x64\x65\x6c\x65\x74\x65_account']()"
-    assert policy.evaluate_js(js_code) == RiskLevel.DANGEROUS
+    js_code_hex = r"window['\x64\x65\x6c\x65\x74\x65_account']()"
+    assert policy.evaluate_js(js_code_hex) == RiskLevel.DANGEROUS
 
+    js_code_es6 = r"window['\u{64}\u{65}lete_account']()"
+    assert policy.evaluate_js(js_code_es6) == RiskLevel.DANGEROUS
+
+    js_code_octal = r"window['\144\145\154\145\164\145_account']()"
+    assert policy.evaluate_js(js_code_octal) == RiskLevel.DANGEROUS

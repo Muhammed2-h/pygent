@@ -17,3 +17,9 @@ While writing tests to attempt bypasses, I found and fixed the following:
 
 ## 3. Verification
 Ran `python3 -m pytest tests/ -x` successfully. The automated tests fail the build if a vulnerability exists, addressing Phase 62 requirements.
+
+## 4. Review Fixes
+Addressed code review feedback:
+- **JS Deobfuscation:** Expanded `BrowserPolicy.extract_words` regex to unescape ES6 Unicode code points (`\u{XXXXXX}`) and octal escapes, preventing advanced obfuscation bypasses.
+- **Shell Injection Test:** Updated `test_shell_injection` to attempt injecting malicious payloads through `language` argument (`"bash; echo 'hacked'"`). Test successfully verified `subprocess.Popen` treats this as a literal filename (raising 'No such file or directory') rather than executing it via a shell.
+- **Test Assertions & Cleanup:** Fixed brittle assertions in `test_arbitrary_file_execution` by parsing JSON properly, and removed unused imports and incomplete comments. Tests fully pass.
