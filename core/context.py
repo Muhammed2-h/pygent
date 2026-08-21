@@ -2,6 +2,17 @@ import json
 from typing import List, Optional, Any
 from models import Message
 
+def truncate_dict_strings(d: Any, max_len: int = 2000) -> Any:
+    if isinstance(d, dict):
+        return {k: truncate_dict_strings(v, max_len) for k, v in d.items()}
+    elif isinstance(d, list):
+        if len(d) > 20:
+            d = d[:20] + ["... [truncated list]"]
+        return [truncate_dict_strings(v, max_len) for v in d]
+    elif isinstance(d, str):
+        if len(d) > max_len:
+            return d[:max_len] + "... [truncated]"
+    return d
 class ContextBuilder:
     def __init__(
         self,
@@ -84,18 +95,6 @@ class ContextBuilder:
                 state_dict = browser_state.dict()
             elif isinstance(browser_state, dict):
                 state_dict = browser_state
-            
-            def truncate_dict_strings(d, max_len=2000):
-                if isinstance(d, dict):
-                    return {k: truncate_dict_strings(v, max_len) for k, v in d.items()}
-                elif isinstance(d, list):
-                    if len(d) > 20:
-                        d = d[:20] + ["... [truncated list]"]
-                    return [truncate_dict_strings(v, max_len) for v in d]
-                elif isinstance(d, str):
-                    if len(d) > max_len:
-                        return d[:max_len] + "... [truncated]"
-                return d
             
             truncated_state = truncate_dict_strings(state_dict)
             parts.append(f"Recent Browser State:\n{json.dumps(truncated_state, indent=2)}")

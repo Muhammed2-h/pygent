@@ -165,6 +165,20 @@ def compress_history(
     boundary = max(0, n - keep_recent)
 
     result: List[Message] = []
+    def _compress_tool(text: str) -> str:
+        text = _strip_thinking(text)
+        text = _BROWSER_OBSERVATION_RE.sub("[browser observation removed]", text)
+        return COMPRESSED_MARKER + _truncate(text, max_tool_result_len)
+
+    def _compress_asst(text: str) -> str:
+        text = _strip_thinking(text)
+        return COMPRESSED_MARKER + _truncate(text, max_assistant_content_len)
+
+    def _compress_browser(text: str) -> str:
+        text = _BROWSER_OBSERVATION_RE.sub("[browser observation removed]", text)
+        text = _strip_thinking(text)
+        return COMPRESSED_MARKER + _truncate(text, max_assistant_content_len)
+
     for idx, msg in enumerate(messages):
         # Recent window – keep verbatim.
         if idx >= boundary:
@@ -179,20 +193,6 @@ def compress_history(
         # --- Compress older messages ---
         compressed = msg.model_copy()
         content = compressed.content or ""
-
-        def _compress_tool(text: str) -> str:
-            text = _strip_thinking(text)
-            text = _BROWSER_OBSERVATION_RE.sub("[browser observation removed]", text)
-            return COMPRESSED_MARKER + _truncate(text, max_tool_result_len)
-
-        def _compress_asst(text: str) -> str:
-            text = _strip_thinking(text)
-            return COMPRESSED_MARKER + _truncate(text, max_assistant_content_len)
-
-        def _compress_browser(text: str) -> str:
-            text = _BROWSER_OBSERVATION_RE.sub("[browser observation removed]", text)
-            text = _strip_thinking(text)
-            return COMPRESSED_MARKER + _truncate(text, max_assistant_content_len)
 
         if msg.role == "tool":
             compressed.content = _compress_tool(content)

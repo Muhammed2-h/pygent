@@ -82,3 +82,32 @@ def test_context_limits_large_skill_repository():
     
     total_len = sum(len(m.content or "") for m in context)
     assert total_len < 5000, f"Total length is {total_len}, skills should be bounded"
+
+def test_context_limits_repeated_tool_calls():
+    builder = ContextBuilder()
+    
+    # 5. Repeated tool calls
+    history = []
+    for i in range(50):
+        history.append(Message(
+            role="assistant", 
+            content=f"Calling tool {i}",
+            tool_calls=[{"name": "test_tool", "arguments": {"arg": "long_argument_" * 100}, "id": f"call_{i}"}]
+        ))
+        history.append(Message(
+            role="tool", 
+            content="Result " * 100, 
+            tool_call_id=f"call_{i}"
+        ))
+        
+    context = builder.build_context(
+        system_prompt="System",
+        user_input="Input",
+        history=history,
+        max_history=10
+    )
+    
+    compressed = compress_history(context, keep_recent=0, max_assistant_content_len=100, max_tool_result_len=100)
+    
+    total_len = sum(len(m.content or "") for m in compressed)
+    assert total_len < 3000, f"Total length is {total_len}, repeated tool calls should be bounded"
