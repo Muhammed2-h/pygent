@@ -276,25 +276,39 @@ class MemoryStore:
     def record_skill_success(self, name: str) -> None:
         now = datetime.datetime.now(datetime.UTC).isoformat()
         with self.conn:
-            skill = self.conn.execute("SELECT confidence, success_count FROM skills WHERE name = ?", (name,)).fetchone()
+            skill = self.conn.execute("SELECT confidence, success_count, state FROM skills WHERE name = ?", (name,)).fetchone()
             if skill:
                 increments = [0.15, 0.10, 0.05, 0.02, 0.01]
                 inc = increments[skill["success_count"]] if skill["success_count"] < len(increments) else 0.01
                 new_conf = round(min(1.0, skill["confidence"] + inc), 2)
+                
+                new_success = skill["success_count"] + 1
+                new_state = skill["state"]
+                if new_success >= 5:
+                    new_state = "trusted"
+                elif new_success >= 2:
+                    new_state = "verified"
+                
                 self.conn.execute(
-                    "UPDATE skills SET confidence = ?, success_count = ?, last_used = ?, updated_at = ? WHERE name = ?",
-                    (new_conf, skill["success_count"] + 1, now, now, name)
+                    "UPDATE skills SET confidence = ?, success_count = ?, last_used = ?, updated_at = ?, state = ? WHERE name = ?",
+                    (new_conf, new_success, now, now, new_state, name)
                 )
 
     def record_skill_failure(self, name: str) -> None:
         now = datetime.datetime.now(datetime.UTC).isoformat()
         with self.conn:
-            skill = self.conn.execute("SELECT confidence, failure_count FROM skills WHERE name = ?", (name,)).fetchone()
+            skill = self.conn.execute("SELECT confidence, failure_count, state FROM skills WHERE name = ?", (name,)).fetchone()
             if skill:
                 new_conf = round(max(0.0, skill["confidence"] - 0.15), 2)
+                new_failure = skill["failure_count"] + 1
+                
+                new_state = skill["state"]
+                if new_failure >= 2:
+                    new_state = "degraded"
+
                 self.conn.execute(
-                    "UPDATE skills SET confidence = ?, failure_count = ?, last_used = ?, state = 'degraded', updated_at = ? WHERE name = ?",
-                    (new_conf, skill["failure_count"] + 1, now, now, name)
+                    "UPDATE skills SET confidence = ?, failure_count = ?, last_used = ?, state = ?, updated_at = ? WHERE name = ?",
+                    (new_conf, new_failure, now, new_state, now, name)
                 )
 
     def close(self):

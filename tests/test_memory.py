@@ -147,23 +147,40 @@ def test_skill_lifecycle(tmp_path):
     # Test success 1 (0.50 + 0.15 = 0.65)
     store.record_skill_success("test_skill")
     with store.conn:
-        row = store.conn.execute("SELECT confidence, success_count FROM skills WHERE name='test_skill'").fetchone()
+        row = store.conn.execute("SELECT confidence, success_count, state FROM skills WHERE name='test_skill'").fetchone()
         assert row["confidence"] == 0.65
         assert row["success_count"] == 1
+        assert row["state"] == 'candidate'
         
-    # Test success 2 (0.65 + 0.10 = 0.75)
+    # Test success 2 (0.65 + 0.10 = 0.75) -> verified
     store.record_skill_success("test_skill")
     with store.conn:
-        row = store.conn.execute("SELECT confidence, success_count FROM skills WHERE name='test_skill'").fetchone()
+        row = store.conn.execute("SELECT confidence, success_count, state FROM skills WHERE name='test_skill'").fetchone()
         assert row["confidence"] == 0.75
         assert row["success_count"] == 2
+        assert row["state"] == 'verified'
+        
+    # Test successes up to 5 -> trusted
+    store.record_skill_success("test_skill")
+    store.record_skill_success("test_skill")
+    store.record_skill_success("test_skill")
+    with store.conn:
+        row = store.conn.execute("SELECT success_count, state FROM skills WHERE name='test_skill'").fetchone()
+        assert row["success_count"] == 5
+        assert row["state"] == 'trusted'
 
-    # Test failure
+    # Test failure 1 -> still trusted
     store.record_skill_failure("test_skill")
     with store.conn:
-        row = store.conn.execute("SELECT confidence, failure_count, state FROM skills WHERE name='test_skill'").fetchone()
-        assert row["confidence"] == 0.60
+        row = store.conn.execute("SELECT failure_count, state FROM skills WHERE name='test_skill'").fetchone()
         assert row["failure_count"] == 1
+        assert row["state"] == 'trusted'
+
+    # Test failure 2 -> degraded
+    store.record_skill_failure("test_skill")
+    with store.conn:
+        row = store.conn.execute("SELECT failure_count, state FROM skills WHERE name='test_skill'").fetchone()
+        assert row["failure_count"] == 2
         assert row["state"] == 'degraded'
 
     # Test state update
