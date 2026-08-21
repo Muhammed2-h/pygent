@@ -1,6 +1,8 @@
 import pytest
 import pytest_asyncio
 import asyncio
+import os
+import signal
 import socket
 import sys
 import shutil
@@ -69,21 +71,21 @@ def local_server():
     shutil.rmtree(temp_dir, ignore_errors=True)
 
 
+def _get_free_port():
+    """Bind to port 0 to let the OS pick a free port, then release it."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        return s.getsockname()[1]
+
+
 @pytest_asyncio.fixture
 async def browser_env():
     chrome_path = find_chrome()
     if not chrome_path:
         pytest.skip("Chrome not found")
 
-    def get_free_port():
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(('', 0))
-        port = s.getsockname()[1]
-        s.close()
-        return port
-
-    ws_port = get_free_port()
-    http_port = get_free_port()
+    ws_port = _get_free_port()
+    http_port = _get_free_port()
     
     root_dir = Path(__file__).parent.parent.parent
     orig_extension_dir = root_dir / "extension"
@@ -125,49 +127,42 @@ async def browser_env():
         
     cmd.append(f"http://127.0.0.1:{http_port}/poll?session_id={session_id}")
     
-    import os
-    import signal
-    
     log_dir = Path(tempfile.mkdtemp())
     log_out = open(log_dir / "chrome_out.log", "w")
     log_err = open(log_dir / "chrome_err.log", "w")
-    proc = subprocess.Popen(cmd, stdout=log_out, stderr=log_err, start_new_session=True)
-    
-    connected = False
-    for _ in range(600):
-        if transport.is_connected(session_id):
-            connected = True
-            break
-        await asyncio.sleep(0.1)
+    proc = None
+    try:
+        proc = subprocess.Popen(cmd, stdout=log_out, stderr=log_err, start_new_session=True)
         
-    if not connected:
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except Exception:
-            proc.kill()
+        connected = False
+        for _ in range(600):
+            if transport.is_connected(session_id):
+                connected = True
+                break
+            await asyncio.sleep(0.1)
+            
+        if not connected:
+            pytest.fail("Browser did not connect")
+            
+        env = {
+            "transport": transport,
+            "driver": driver,
+            "session_id": session_id,
+            "proc": proc,
+            "http_port": http_port
+        }
+        
+        yield env
+    finally:
+        if proc is not None:
+            try:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            except Exception:
+                proc.kill()
+
         log_out.close()
         log_err.close()
+        shutil.rmtree(user_data_dir, ignore_errors=True)
+        shutil.rmtree(temp_ext_dir, ignore_errors=True)
+        shutil.rmtree(log_dir, ignore_errors=True)
         await transport.stop()
-        pytest.fail("Browser did not connect")
-        
-    env = {
-        "transport": transport,
-        "driver": driver,
-        "session_id": session_id,
-        "proc": proc,
-        "http_port": http_port
-    }
-    
-    yield env
-    
-    try:
-        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-    except Exception:
-        proc.kill()
-        
-    log_out.close()
-    log_err.close()
-    shutil.rmtree(user_data_dir, ignore_errors=True)
-    shutil.rmtree(temp_ext_dir, ignore_errors=True)
-    shutil.rmtree(log_dir, ignore_errors=True)
-    await transport.stop()
