@@ -31,6 +31,7 @@ def execute(args_list=None):
     
     # browser
     browser_parser = subparsers.add_parser("browser", help="Browser automation tools")
+    browser_parser.add_argument("--managed", action="store_true", help="Start a managed browser with a dedicated profile")
     browser_subparsers = browser_parser.add_subparsers(dest="browser_command")
     browser_subparsers.add_parser("setup", help="Setup browser extension")
     
@@ -71,7 +72,7 @@ def execute(args_list=None):
             handle_browser_setup()
         else:
             from .browser_repl import handle_browser
-            handle_browser(db_path, skills_dir)
+            handle_browser(db_path, skills_dir, managed=getattr(args, "managed", False))
     elif args.command == "skills":
         print("Skills command executed.")
     elif args.command == "environment":

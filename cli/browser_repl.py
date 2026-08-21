@@ -41,7 +41,7 @@ def find_chrome() -> str:
             return path
     return ""
 
-async def async_start_browser_repl(db_path: str, skills_dir: str):
+async def async_start_browser_repl(db_path: str, skills_dir: str, managed: bool = False):
     set_main_loop(asyncio.get_running_loop())
     ws_port = 18765
     http_port = 18766
@@ -58,14 +58,16 @@ async def async_start_browser_repl(db_path: str, skills_dir: str):
         print(f"Error starting transport: {e}")
         return
 
-    # Wait to see if extension connects on its own
-    print("Waiting for extension connection...")
     connected = False
-    for _ in range(10):
-        if transport.is_connected(session_id):
-            connected = True
-            break
-        await asyncio.sleep(0.2)
+    
+    if not managed:
+        # Wait to see if extension connects on its own
+        print("Waiting for extension connection...")
+        for _ in range(10):
+            if transport.is_connected(session_id):
+                connected = True
+                break
+            await asyncio.sleep(0.2)
 
     proc = None
     user_data_dir = None
@@ -80,7 +82,15 @@ async def async_start_browser_repl(db_path: str, skills_dir: str):
         root_dir = Path(__file__).parent.parent
         extension_dir = root_dir / "extension"
 
-        user_data_dir = tempfile.mkdtemp()
+        config = load_config()
+        if managed:
+            user_data_dir = str(Path(config.data_dir) / "browser" / "profile")
+            # Clear it to ensure fresh session
+            shutil.rmtree(user_data_dir, ignore_errors=True)
+            Path(user_data_dir).mkdir(parents=True, exist_ok=True)
+        else:
+            user_data_dir = tempfile.mkdtemp()
+            
         cmd = [
             chrome_path,
             f"--load-extension={extension_dir}",
@@ -193,11 +203,11 @@ async def async_start_browser_repl(db_path: str, skills_dir: str):
                 proc.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 proc.kill()
-        if user_data_dir:
+        if user_data_dir and not managed:
             shutil.rmtree(user_data_dir, ignore_errors=True)
 
-def handle_browser(db_path: str, skills_dir: str):
+def handle_browser(db_path: str, skills_dir: str, managed: bool = False):
     try:
-        asyncio.run(async_start_browser_repl(db_path, skills_dir))
+        asyncio.run(async_start_browser_repl(db_path, skills_dir, managed))
     except KeyboardInterrupt:
         pass
