@@ -273,7 +273,12 @@ async function handleRequest(msg) {
               args: [wrapperCode]
           }, (injectionResults) => {
               if (chrome.runtime.lastError) {
-                  runCDP();
+                  const errMsg = chrome.runtime.lastError.message || "";
+                  if (errMsg.includes("Execution context was destroyed") || errMsg.includes("Cannot find context") || errMsg.includes("unknown context")) {
+                      cleanupAndResolve({ __pygent_error: true, message: errMsg });
+                  } else {
+                      runCDP();
+                  }
               } else if (!injectionResults || injectionResults.length === 0) {
                   runCDP();
               } else {
