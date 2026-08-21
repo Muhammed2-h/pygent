@@ -55,11 +55,8 @@ class AgentLoop:
                 break
                 
             current_tool_calls = new_msg.tool_calls
-            if self._is_same_action(current_tool_calls, self.state.last_tool_calls):
-                self.state.strategy = "fallback"
-                
-            self.state.last_tool_calls = current_tool_calls
             current_errors = []
+            current_results = []
             executed_tool_calls = []
 
             for tc in new_msg.tool_calls:
@@ -77,6 +74,7 @@ class AgentLoop:
                     is_error = True
                     current_errors.append(result)
                     
+                current_results.append(result)
                 self.events.emit(ToolResultEvent(tool_call_id=tc.id, result=result, is_error=is_error))
                 
                 tool_msg = Message(role="tool", content=result, tool_call_id=tc.id)
@@ -87,10 +85,52 @@ class AgentLoop:
             if len(executed_tool_calls) < len(new_msg.tool_calls):
                 new_msg.tool_calls = executed_tool_calls
 
-            if self._is_same_error(current_errors, self.state.last_errors) and current_errors:
+            self.state.loop_guard.add_step(
+                tool_calls=executed_tool_calls,
+                errors=current_errors,
+                results=current_results
+            )
+            
+            rep_count = self.state.loop_guard.get_repetition_count()
+            if rep_count == 2:
+                warning_msg = Message(
+                    role="system",
+                    content="Warning: You are repeating the exact same tool calls and getting the same results. Please consider a different approach."
+                )
+                self.state.messages.append(warning_msg)
+                self.state.new_messages.append(warning_msg)
+            elif rep_count == 3:
                 self.state.strategy = "fallback"
-                
-            self.state.last_errors = current_errors
+            elif rep_count >= 4:
+                from tools.human import tool_ask_user
+                try:
+                    ans = tool_ask_user(
+                        question="I am stuck in an infinite loop repeating the same actions. How should I proceed?",
+                        choices=["continue", "abort"],
+                        risk="high",
+                        reason="Infinite loop detected."
+                    )
+                    if ans.lower() == "abort":
+                        limit_reason = "User aborted due to infinite loop."
+                        limit_msg = Message(role="system", content=f"{limit_reason} Please summarize the final result without calling any more tools.")
+                        self.state.messages.append(limit_msg)
+                        self.state.new_messages.append(limit_msg)
+                        
+                        final_messages_to_send = self.state.messages.copy()
+                        final_cp = self.state.checkpoint.get_checkpoint()
+                        if final_cp:
+                            final_messages_to_send.append(Message(role="system", content=final_cp))
+                        final_response = self.provider.complete(final_messages_to_send, model=current_model, tools=[])
+                        final_msg = final_response.messages[0]
+                        self.state.messages.append(final_msg)
+                        self.state.new_messages.append(final_msg)
+                        break
+                    else:
+                        user_msg = Message(role="user", content=f"User responded to loop guard: {ans}")
+                        self.state.messages.append(user_msg)
+                        self.state.new_messages.append(user_msg)
+                except Exception as e:
+                    pass
 
             # check limit after step
             limit_reason = None
@@ -122,18 +162,3 @@ class AgentLoop:
             self.state.turns += 1
 
         return self.state.new_messages
-
-    def _is_same_action(self, current: List[ToolCall], last: List[ToolCall]) -> bool:
-        if not current or not last:
-            return False
-        if len(current) != len(last):
-            return False
-        for c, l in zip(current, last):
-            if c.name != l.name or c.arguments != l.arguments:
-                return False
-        return True
-        
-    def _is_same_error(self, current: List[str], last: List[str]) -> bool:
-        if not current or not last:
-            return False
-        return current == last

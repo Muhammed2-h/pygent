@@ -1,6 +1,7 @@
 import time
 from typing import List, Optional
 from models import Message, ToolCall
+from core.loop_guard import LoopGuard
 
 class AgentState:
     def __init__(self, max_turns: int = 8, max_tool_calls: int = 100, max_wall_time: float = 3600.0):
@@ -21,6 +22,7 @@ class AgentState:
         
         from memory.lifecycle import MemoryCheckpoint
         self.checkpoint = MemoryCheckpoint()
+        self.loop_guard = LoopGuard()
 
     def get_wall_time(self) -> float:
         return time.time() - self.start_time

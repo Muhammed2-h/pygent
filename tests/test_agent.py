@@ -109,14 +109,14 @@ def test_agent_run_respects_max_steps():
     result = agent.run("System", "User")
 
     # max_steps is 3
-    # Step 1: assistant tool call + tool result (2 messages added)
-    # Step 2: assistant tool call + tool result (2 messages added)
-    # At end of Step 2, same_action triggers strategy switch
-    # Step 3: strategy warning (1 message added) + assistant tool call + tool result + max step msg + final response (4 messages added)
-    # Total new_messages: 2 + 2 + 1 + 4 = 9
+    # Step 1: assistant tool call + tool result (2 messages added), rep=0
+    # Step 2: assistant tool call + tool result (2 messages added), rep=1
+    # Step 3: assistant tool call + tool result (2 messages added), rep=2 -> warns
+    # At end of Step 3, max steps reached -> limit msg + final assistant msg (2 msgs added)
+    # Total new_messages: 2 + 2 + 2 + 1 (warning) + 2 = 9
     assert len(result) == 9
-    assert result[4].role == "system"
-    assert "rethink your strategy" in result[4].content
+    assert result[6].role == "system"
+    assert "different approach" in result[6].content
     assert provider.call_count == 4
 
 
