@@ -77,23 +77,30 @@ chrome.debugger.onEvent.addListener((source, method, params) => {
 });
 
 
-function waitForTabLoad(tabId) {
-    return new Promise((resolve) => {
-        chrome.tabs.get(tabId, (tab) => {
-            if (!tab || tab.status === 'complete') {
+const waitForTabLoad = (tid) => {
+    return new Promise(r => {
+        let resolved = false;
+        const resolve = () => {
+            if (resolved) return;
+            resolved = true;
+            chrome.tabs.onUpdated.removeListener(l);
+            r();
+        };
+        const l = (tabId, info, tab) => {
+            if (tabId === tid && (info.status === 'complete' || tab.status === 'complete')) {
                 resolve();
-            } else {
-                const listener = (tid, changeInfo) => {
-                    if (tid === tabId && changeInfo.status === 'complete') {
-                        chrome.tabs.onUpdated.removeListener(listener);
-                        resolve();
-                    }
-                };
-                chrome.tabs.onUpdated.addListener(listener);
+            }
+        };
+        chrome.tabs.onUpdated.addListener(l);
+        chrome.tabs.get(tid, (t) => {
+            if (chrome.runtime.lastError || !t || t.status === 'complete') {
+                resolve();
             }
         });
+        // safety timeout
+        setTimeout(resolve, 10000);
     });
-}
+};
 
 async function handleRequest(msg) {
   const command = msg.cmd;
