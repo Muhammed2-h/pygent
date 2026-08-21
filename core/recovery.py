@@ -28,6 +28,7 @@ class FailureType(str, Enum):
     ENVIRONMENT = "environment"
     AUTHENTICATION = "authentication"
     UNSUPPORTED = "unsupported"
+    JAVASCRIPT = "javascript"
     UNKNOWN = "unknown"
 
 
@@ -81,6 +82,10 @@ _CLASSIFICATION_RULES: List[tuple] = [
         r"|NotImplementedError|UnsupportedOperationException"
         r"|deprecated|unavailable\s*feature|cannot\s*perform"
         r"|browser\s*does\s*not\s*support)",
+        re.IGNORECASE,
+    )),
+    (FailureType.JAVASCRIPT, re.compile(
+        r"(EvaluationError|JavaScript\s*error|CSP|CDP\s*error|unsafe-eval)",
         re.IGNORECASE,
     )),
 ]
@@ -207,6 +212,13 @@ _DEFAULT_RECOVERY: Dict[FailureType, RecoveryRecommendation] = {
             "to achieve the same goal."
         ),
     ),
+    FailureType.JAVASCRIPT: RecoveryRecommendation(
+        action=RecoveryAction.USE_CDP,
+        reason="JavaScript failure – fall back to CDP protocol.",
+        system_hint=(
+            "JavaScript execution failed. Fall back to using CDP for this operation."
+        ),
+    ),
     FailureType.UNKNOWN: RecoveryRecommendation(
         action=RecoveryAction.CHECKPOINT_AND_CHANGE_STRATEGY,
         reason="Unknown failure – checkpoint progress and change strategy.",
@@ -246,14 +258,8 @@ class RecoveryStrategy:
 
         # Track consecutive same-type failures
         ftype = failure.failure_type
-        if self._history and len(self._history) >= 2:
-            prev = self._history[-2]
-            if prev.failure_type == ftype:
-                self._consecutive_counts[ftype] = (
-                    self._consecutive_counts.get(ftype, 1) + 1
-                )
-            else:
-                self._consecutive_counts[ftype] = 1
+        if len(self._history) >= 2 and self._history[-2].failure_type == ftype:
+            self._consecutive_counts[ftype] = self._consecutive_counts.get(ftype, 0) + 1
         else:
             self._consecutive_counts[ftype] = 1
 

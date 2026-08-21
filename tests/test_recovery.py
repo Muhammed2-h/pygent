@@ -18,7 +18,7 @@ class TestFailureType:
     def test_all_expected_members(self):
         expected = {
             "transient", "selector", "navigation", "permission",
-            "environment", "authentication", "unsupported", "unknown",
+            "environment", "authentication", "unsupported", "javascript", "unknown",
         }
         assert {ft.value for ft in FailureType} == expected
 
@@ -121,6 +121,17 @@ class TestFailureClassifier:
     def test_unsupported(self, classifier, error):
         assert classifier.classify(error).failure_type == FailureType.UNSUPPORTED
 
+    # -- javascript --
+    @pytest.mark.parametrize("error", [
+        "EvaluationError: execution context was destroyed",
+        "JavaScript error: TypeError: Cannot read properties of null (reading 'click')",
+        "CSP directive violated",
+        "CDP error: Runtime.evaluate failed",
+        "Refused to evaluate a string as JavaScript because 'unsafe-eval' is not an allowed source of script",
+    ])
+    def test_javascript(self, classifier, error):
+        assert classifier.classify(error).failure_type == FailureType.JAVASCRIPT
+
     # -- unknown --
     @pytest.mark.parametrize("error", [
         "something went horribly wrong",
@@ -181,6 +192,10 @@ class TestRecoveryStrategy:
     def test_unsupported_recommends_skip(self, strategy):
         rec = strategy.recommend(self._make_failure(FailureType.UNSUPPORTED))
         assert rec.action == RecoveryAction.SKIP
+
+    def test_javascript_recommends_use_cdp(self, strategy):
+        rec = strategy.recommend(self._make_failure(FailureType.JAVASCRIPT))
+        assert rec.action == RecoveryAction.USE_CDP
 
     def test_unknown_recommends_checkpoint_change_strategy(self, strategy):
         rec = strategy.recommend(self._make_failure(FailureType.UNKNOWN))
@@ -256,13 +271,13 @@ class TestRecoveryStrategy:
         rec = strategy.recommend(failure)
         assert rec.action == RecoveryAction.RESCAN_SELECTORS
 
-    def test_end_to_end_js_failure_environment(self, strategy, classifier):
-        """JS / CDP-related errors that map to environment (missing package)."""
-        error = "ModuleNotFoundError: No module named 'selenium'"
+    def test_end_to_end_js_failure(self, strategy, classifier):
+        """JS / CDP-related errors that map to USE_CDP."""
+        error = "EvaluationError: execution context was destroyed"
         failure = classifier.classify(error)
-        assert failure.failure_type == FailureType.ENVIRONMENT
+        assert failure.failure_type == FailureType.JAVASCRIPT
         rec = strategy.recommend(failure)
-        assert rec.action == RecoveryAction.INSTALL_PACKAGE
+        assert rec.action == RecoveryAction.USE_CDP
 
     def test_custom_max_consecutive(self):
         strategy = RecoveryStrategy(max_consecutive=2)
