@@ -19,6 +19,8 @@ class RiskLevel(Enum):
         return NotImplemented
 
 def extract_words(text: str) -> set:
+    text = re.sub(r'\\x([0-9a-fA-F]{2})', lambda m: chr(int(m.group(1), 16)), text)
+    text = re.sub(r'\\u([0-9a-fA-F]{4})', lambda m: chr(int(m.group(1), 16)), text)
     s1 = re.sub(r'(.)([A-Z][a-z]+)', r'\1_\2', text)
     s2 = re.sub(r'([a-z0-9])([A-Z])', r'\1_\2', s1)
     return set(w.lower() for w in re.split(r'[^a-zA-Z0-9]+', s2) if w)

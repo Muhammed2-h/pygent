@@ -23,6 +23,12 @@ def execute_code(
     stderr_limit: int = 10000,
 ) -> str:
     """Executes the given code and returns the output, including exit code, stdout, and stderr."""
+    from tools.filesystem import normalize_and_check_path
+    if cwd:
+        try:
+            normalize_and_check_path(cwd)
+        except ValueError as e:
+            return json.dumps({"exit_code": -1, "stdout": "", "stderr": "", "error": str(e)})
     if timeout > 600:
         timeout = 600
 
