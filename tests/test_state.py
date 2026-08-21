@@ -1,5 +1,5 @@
-import pytest
 from core.state import ExecutionState
+
 
 def test_execution_state_initialization():
     state = ExecutionState(task_id="task-123", session_id="session-456")

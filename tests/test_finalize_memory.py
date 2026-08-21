@@ -1,17 +1,16 @@
 """Tests for finalize_task_memory (Task 9) and MemoryStore.add_skill."""
 import pytest
-from memory.storage import MemoryStore
+
 from memory.lifecycle import (
-    FinalizationResult,
-    finalize_task_memory,
-    _is_temporary_variable,
-    _is_reasoning_chain,
-    _is_generic_knowledge,
-    _is_failed_experiment,
     _extract_facts,
     _extract_procedures,
-    ExtractedFact,
+    _is_failed_experiment,
+    _is_generic_knowledge,
+    _is_reasoning_chain,
+    _is_temporary_variable,
+    finalize_task_memory,
 )
+from memory.storage import MemoryStore
 
 
 @pytest.fixture

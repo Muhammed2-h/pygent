@@ -1,6 +1,8 @@
-import pytest
 import asyncio
 import base64
+
+import pytest
+
 
 @pytest.mark.asyncio
 async def test_screenshot(browser_env, local_server):

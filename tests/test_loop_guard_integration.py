@@ -1,11 +1,13 @@
 import pytest
-from core.loop import AgentLoop
-from core.state import AgentState
+
 from core.context import ContextBuilder
 from core.events import EventBus
-from models import Message, ToolCall, AgentResponse
+from core.loop import AgentLoop
+from core.state import AgentState
+from models import AgentResponse, Message, ToolCall
 from providers.base import BaseProvider
 from tools.registry import ToolRegistry, tool
+
 
 class DummyProvider(BaseProvider):
     def __init__(self, responses):

@@ -1,6 +1,8 @@
+
 import pytest
-import asyncio
+
 from browser.cdp import CDPClient
+
 
 @pytest.mark.asyncio
 async def test_cdp_evaluate(browser_env):

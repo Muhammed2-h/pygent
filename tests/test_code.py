@@ -1,8 +1,10 @@
 import json
 import os
 import sys
+
 from tools.code import execute_code
 from tools.registry import ToolRegistry
+
 
 def test_execute_code_python():
     res = execute_code(language="python", code="print('hello')")

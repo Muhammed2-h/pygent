@@ -1,7 +1,8 @@
 import json
 import logging
-import pytest
-from core.logger import redact, JSONLFormatter, get_logger, SENSITIVE_KEYS
+
+from core.logger import JSONLFormatter, redact
+
 
 def test_redact_sensitive_keys():
     data = {

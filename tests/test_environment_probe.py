@@ -1,21 +1,22 @@
-import os
-import sys
 import platform
-from unittest.mock import patch, MagicMock
+import sys
+from unittest.mock import MagicMock, patch
+
 from environment.probe import (
-    probe_os,
-    probe_python,
-    probe_git,
-    probe_node,
-    probe_docker,
+    probe_all,
     probe_chrome,
     probe_chrome_extension,
-    probe_websocket_port,
-    probe_http_bridge,
+    probe_docker,
     probe_filesystem,
+    probe_git,
+    probe_http_bridge,
+    probe_node,
+    probe_os,
+    probe_python,
     probe_virtual_environment,
-    probe_all
+    probe_websocket_port,
 )
+
 
 def test_probe_os():
     cap = probe_os()

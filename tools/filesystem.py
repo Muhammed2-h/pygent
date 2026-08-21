@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
+
 from tools.registry import tool
+
 
 def normalize_and_check_path(filepath: str, allowed_root: str = None) -> Path:
     p = Path(filepath).resolve()

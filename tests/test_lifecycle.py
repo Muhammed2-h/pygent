@@ -1,5 +1,5 @@
-import pytest
 from memory.lifecycle import MemoryCheckpoint
+
 
 def test_checkpoint_lifecycle():
     checkpoint = MemoryCheckpoint()

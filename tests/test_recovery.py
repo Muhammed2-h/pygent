@@ -7,10 +7,8 @@ from core.recovery import (
     FailureClassifier,
     FailureType,
     RecoveryAction,
-    RecoveryRecommendation,
     RecoveryStrategy,
 )
-
 
 # ── FailureType enum ──────────────────────────────────────────────────────
 

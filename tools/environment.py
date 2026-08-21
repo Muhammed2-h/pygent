@@ -1,10 +1,11 @@
 import logging
-from typing import Optional
-from .registry import tool
-from .human import tool_ask_user
-from environment.manager import EnvironmentManager
-from config import load_config
 from pathlib import Path
+
+from config import load_config
+from environment.manager import EnvironmentManager
+
+from .human import tool_ask_user
+from .registry import tool
 
 logger = logging.getLogger(__name__)
 

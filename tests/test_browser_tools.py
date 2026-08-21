@@ -1,19 +1,18 @@
-import pytest
 import json
-from tools.browser import (
-    browser_sessions, 
-    browser_scan, 
-    browser_execute_js, 
-    browser_cdp, 
-    browser_screenshot,
-    setup_browser_tools
-)
-from browser.session import Session, BrowserSessionManager
-from browser.driver import BrowserDriver
-from browser.transport import BrowserTransport
-from browser.cdp import CDPClient
-from browser.observer import BrowserObserver
 from datetime import datetime
+
+import pytest
+
+from browser.session import BrowserSessionManager, Session
+from tools.browser import (
+    browser_cdp,
+    browser_execute_js,
+    browser_scan,
+    browser_screenshot,
+    browser_sessions,
+    setup_browser_tools,
+)
+
 
 # Provide dummy implementations for testing
 class DummySessionManager(BrowserSessionManager):
@@ -82,8 +81,9 @@ async def test_browser_screenshot():
 
 @pytest.mark.asyncio
 async def test_browser_tools_privacy_scrub():
-    from tools.browser import browser_execute_js, _driver
     from unittest.mock import AsyncMock
+
+    from tools.browser import _driver, browser_execute_js
     
     # Mock driver
     _driver.execute_js = AsyncMock(return_value={"cookie": "sessionid=secret_token_123"})

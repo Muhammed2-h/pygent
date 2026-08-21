@@ -1,5 +1,6 @@
-from typing import List
+
 from models import ToolCall
+
 
 class LoopGuard:
     """Detects infinite loops in agent execution."""
@@ -7,7 +8,7 @@ class LoopGuard:
     def __init__(self):
         self.history = []
         
-    def add_step(self, tool_calls: List[ToolCall], errors: List[str], results: List[str], page_id: str = ""):
+    def add_step(self, tool_calls: list[ToolCall], errors: list[str], results: list[str], page_id: str = ""):
         """Records a step in the execution history."""
         self.history.append({
             "tool_calls": tool_calls,
@@ -54,7 +55,7 @@ class LoopGuard:
             
         return True
 
-    def _is_same_tool_calls(self, current: List[ToolCall], last: List[ToolCall]) -> bool:
+    def _is_same_tool_calls(self, current: list[ToolCall], last: list[ToolCall]) -> bool:
         if not current and not last:
             return True
         if not current or not last:

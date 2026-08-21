@@ -1,7 +1,7 @@
-import pytest
-from models import Message, EnvironmentCapability
-from core.context import ContextBuilder
 from browser.state import BrowserState
+from core.context import ContextBuilder
+from models import EnvironmentCapability, Message
+
 
 class MockPromptBuilder:
     def build(self):

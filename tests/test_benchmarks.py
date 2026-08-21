@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
-import tempfile
-from pathlib import Path
 
 import pytest
 
+from benchmarks.metrics import BenchmarkMetrics, MetricsCollector
+from benchmarks.runner import BenchmarkReport, BenchmarkResult, BenchmarkRunner
 from benchmarks.tasks import (
     BENCHMARK_TASKS,
     BenchmarkTask,
@@ -17,9 +16,6 @@ from benchmarks.tasks import (
     filter_tasks,
     get_task,
 )
-from benchmarks.metrics import BenchmarkMetrics, MetricsCollector
-from benchmarks.runner import BenchmarkReport, BenchmarkResult, BenchmarkRunner
-
 
 # ======================================================================
 # Task definitions

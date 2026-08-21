@@ -5,16 +5,17 @@ Provides a structured interface for interacting with CDP endpoints.
 """
 
 import time
-from core.logger import browser_logger
-import asyncio
-from typing import Any, Optional
-from browser.transport import BrowserTransport
+from typing import Any
+
 from browser.models import ExtensionRequest
+from browser.transport import BrowserTransport
+from core.logger import browser_logger
+
 
 class CDPClient:
     """Client for executing Chrome DevTools Protocol commands."""
     
-    def __init__(self, transport: Optional[BrowserTransport] = None, default_timeout: float = 60.0):
+    def __init__(self, transport: BrowserTransport | None = None, default_timeout: float = 60.0):
         """
         Initialize the CDP client.
         
@@ -25,7 +26,7 @@ class CDPClient:
         self.transport = transport
         self.default_timeout = default_timeout
 
-    async def send_command(self, session_id: str, tab_id: int, method: str, params: Optional[dict[str, Any]] = None, timeout: Optional[float] = None) -> Any:
+    async def send_command(self, session_id: str, tab_id: int, method: str, params: dict[str, Any] | None = None, timeout: float | None = None) -> Any:
         """
         Send a raw CDP command and wait for its response.
         
@@ -67,7 +68,7 @@ class CDPClient:
         browser_logger.info(f"CDP command {method}", extra={"tool": f"cdp.{method}", "status": "success", "duration": duration, "error": None})
         return resp.data
 
-    async def send_batch(self, session_id: str, tab_id: int, commands: list[dict[str, Any]], timeout: Optional[float] = None) -> list[Any]:
+    async def send_batch(self, session_id: str, tab_id: int, commands: list[dict[str, Any]], timeout: float | None = None) -> list[Any]:
         """
         Send a batch of CDP commands and wait for their responses.
         
@@ -99,7 +100,7 @@ class CDPClient:
             raise RuntimeError(f"CDP batch command failed: {resp.error}")
         return resp.data
 
-    async def runtime_evaluate(self, session_id: str, tab_id: int, expression: str, return_by_value: bool = True, timeout: Optional[float] = None) -> Any:
+    async def runtime_evaluate(self, session_id: str, tab_id: int, expression: str, return_by_value: bool = True, timeout: float | None = None) -> Any:
         """
         Evaluate JavaScript expression in the tab.
         
@@ -115,7 +116,7 @@ class CDPClient:
             "returnByValue": return_by_value
         }, timeout=timeout)
 
-    async def page_navigate(self, session_id: str, tab_id: int, url: str, timeout: Optional[float] = None) -> Any:
+    async def page_navigate(self, session_id: str, tab_id: int, url: str, timeout: float | None = None) -> Any:
         """
         Navigate the page to a given URL.
         
@@ -129,7 +130,7 @@ class CDPClient:
             "url": url
         }, timeout=timeout)
 
-    async def page_capture_screenshot(self, session_id: str, tab_id: int, image_format: str = "png", quality: int = 100, timeout: Optional[float] = None) -> Any:
+    async def page_capture_screenshot(self, session_id: str, tab_id: int, image_format: str = "png", quality: int = 100, timeout: float | None = None) -> Any:
         """
         Capture a screenshot of the page.
         
@@ -145,7 +146,7 @@ class CDPClient:
             params["quality"] = quality
         return await self.send_command(session_id, tab_id, "Page.captureScreenshot", params, timeout=timeout)
 
-    async def page_bring_to_front(self, session_id: str, tab_id: int, timeout: Optional[float] = None) -> Any:
+    async def page_bring_to_front(self, session_id: str, tab_id: int, timeout: float | None = None) -> Any:
         """
         Bring the page to the front (make it the active tab).
         
@@ -156,7 +157,7 @@ class CDPClient:
         """
         return await self.send_command(session_id, tab_id, "Page.bringToFront", timeout=timeout)
 
-    async def dom_get_document(self, session_id: str, tab_id: int, depth: int = -1, pierce: bool = False, timeout: Optional[float] = None) -> Any:
+    async def dom_get_document(self, session_id: str, tab_id: int, depth: int = -1, pierce: bool = False, timeout: float | None = None) -> Any:
         """
         Returns the root DOM node.
         
@@ -172,7 +173,7 @@ class CDPClient:
             "pierce": pierce
         }, timeout=timeout)
 
-    async def dom_query_selector(self, session_id: str, tab_id: int, node_id: int, selector: str, timeout: Optional[float] = None) -> Any:
+    async def dom_query_selector(self, session_id: str, tab_id: int, node_id: int, selector: str, timeout: float | None = None) -> Any:
         """
         Executes querySelector on a given node.
         
@@ -188,7 +189,7 @@ class CDPClient:
             "selector": selector
         }, timeout=timeout)
 
-    async def dom_get_box_model(self, session_id: str, tab_id: int, node_id: Optional[int] = None, backend_node_id: Optional[int] = None, object_id: Optional[str] = None, timeout: Optional[float] = None) -> Any:
+    async def dom_get_box_model(self, session_id: str, tab_id: int, node_id: int | None = None, backend_node_id: int | None = None, object_id: str | None = None, timeout: float | None = None) -> Any:
         """
         Returns boxes (bounding rects) for the given node.
         
@@ -209,7 +210,7 @@ class CDPClient:
             params["objectId"] = object_id
         return await self.send_command(session_id, tab_id, "DOM.getBoxModel", params, timeout=timeout)
 
-    async def input_dispatch_mouse_event(self, session_id: str, tab_id: int, event_type: str, x: float, y: float, timeout: Optional[float] = None, **kwargs) -> Any:
+    async def input_dispatch_mouse_event(self, session_id: str, tab_id: int, event_type: str, x: float, y: float, timeout: float | None = None, **kwargs) -> Any:
         """
         Dispatches a mouse event.
         
@@ -230,7 +231,7 @@ class CDPClient:
         params.update(kwargs)
         return await self.send_command(session_id, tab_id, "Input.dispatchMouseEvent", params, timeout=timeout)
 
-    async def input_dispatch_key_event(self, session_id: str, tab_id: int, event_type: str, timeout: Optional[float] = None, **kwargs) -> Any:
+    async def input_dispatch_key_event(self, session_id: str, tab_id: int, event_type: str, timeout: float | None = None, **kwargs) -> Any:
         """
         Dispatches a key event.
         
@@ -247,7 +248,7 @@ class CDPClient:
         params.update(kwargs)
         return await self.send_command(session_id, tab_id, "Input.dispatchKeyEvent", params, timeout=timeout)
 
-    async def attach(self, session_id: str, tab_id: int, timeout: Optional[float] = None) -> Any:
+    async def attach(self, session_id: str, tab_id: int, timeout: float | None = None) -> Any:
         req = ExtensionRequest(cmd="debugger_attach", tabId=tab_id, payload={})
         msg_id = await self.transport.send_command(session_id, req)
         effective_timeout = timeout if timeout is not None else self.default_timeout
@@ -257,7 +258,7 @@ class CDPClient:
             raise RuntimeError(f"Failed to attach debugger: {resp.error}")
         return resp.data
 
-    async def detach(self, session_id: str, tab_id: int, timeout: Optional[float] = None) -> Any:
+    async def detach(self, session_id: str, tab_id: int, timeout: float | None = None) -> Any:
         req = ExtensionRequest(cmd="debugger_detach", tabId=tab_id, payload={})
         msg_id = await self.transport.send_command(session_id, req)
         effective_timeout = timeout if timeout is not None else self.default_timeout

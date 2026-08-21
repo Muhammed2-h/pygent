@@ -6,7 +6,7 @@ Manages individual browser contexts/sessions and tabs.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional, List, Dict
+
 
 @dataclass
 class Session:
@@ -25,14 +25,14 @@ class BrowserSessionManager:
     """Manages browser sessions."""
     
     def __init__(self):
-        self._sessions: Dict[str, Session] = {}
-        self._active_tab_id: Optional[str] = None
+        self._sessions: dict[str, Session] = {}
+        self._active_tab_id: str | None = None
         
-    def list_sessions(self) -> List[Session]:
+    def list_sessions(self) -> list[Session]:
         """List all current browser sessions."""
         return list(self._sessions.values())
         
-    def find_session(self, **kwargs) -> List[Session]:
+    def find_session(self, **kwargs) -> list[Session]:
         """Find sessions matching the provided keyword arguments."""
         result = []
         for session in self._sessions.values():
@@ -45,7 +45,7 @@ class BrowserSessionManager:
                 result.append(session)
         return result
         
-    def get_session(self, session_id: str) -> Optional[Session]:
+    def get_session(self, session_id: str) -> Session | None:
         """Get a session by its session_id."""
         return self._sessions.get(session_id)
         
@@ -76,6 +76,6 @@ class BrowserSessionManager:
         return session is not None
 
     @property
-    def active_tab_id(self) -> Optional[str]:
+    def active_tab_id(self) -> str | None:
         """Get the ID of the explicitly active tab."""
         return self._active_tab_id

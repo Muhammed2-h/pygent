@@ -1,7 +1,9 @@
+
 import pytest
-import asyncio
+
 from browser.cdp import CDPClient
-from browser.models import ExtensionRequest, ExtensionResponse
+from browser.models import ExtensionResponse
+
 
 class DummyTransport:
     def __init__(self):

@@ -1,11 +1,11 @@
-from pydantic import BaseModel, Field
-from dotenv import load_dotenv
 import os
 from pathlib import Path
-from typing import Optional
+
+from dotenv import load_dotenv
+from pydantic import BaseModel, Field
 
 
-def _parse_bool(value: Optional[str], default: bool) -> bool:
+def _parse_bool(value: str | None, default: bool) -> bool:
     """Parse a boolean from an environment variable string.
 
     Returns *default* when *value* is empty/None or not a recognised
@@ -21,7 +21,7 @@ def _parse_bool(value: Optional[str], default: bool) -> bool:
     return default
 
 
-def _parse_int(value: Optional[str], default: int) -> int:
+def _parse_int(value: str | None, default: int) -> int:
     """Parse an int from an environment variable string, returning *default* on failure."""
     if not value or not value.strip():
         return default
@@ -34,7 +34,7 @@ def _parse_int(value: Optional[str], default: int) -> int:
 class Config(BaseModel):
     # Core
     provider: str = Field(default="openai")
-    openai_api_key: Optional[str] = Field(default=None)
+    openai_api_key: str | None = Field(default=None)
     default_model: str = Field(default="gpt-4o")
     max_agent_steps: int = Field(default=40)
 
@@ -42,14 +42,7 @@ class Config(BaseModel):
     data_dir: str = Field(default="")
     log_level: str = Field(default="INFO")
 
-    # Browser
-    browser_host: str = Field(default="127.0.0.1")
-    browser_ws_port: int = Field(default=18765)
-    browser_http_port: int = Field(default=18766)
-    browser_auto_start: bool = Field(default=False)
 
-    # Memory
-    memory_enabled: bool = Field(default=True)
 
 
 def load_config() -> Config:
@@ -69,12 +62,7 @@ def load_config() -> Config:
         data_dir=data_dir,
         log_level=os.getenv("PYGENT_LOG_LEVEL", "INFO"),
 
-        browser_host=os.getenv("PYGENT_BROWSER_HOST", "127.0.0.1"),
-        browser_ws_port=_parse_int(os.getenv("PYGENT_BROWSER_WS_PORT"), 18765),
-        browser_http_port=_parse_int(os.getenv("PYGENT_BROWSER_HTTP_PORT"), 18766),
-        browser_auto_start=_parse_bool(os.getenv("PYGENT_BROWSER_AUTO_START", ""), False),
 
-        memory_enabled=_parse_bool(os.getenv("PYGENT_MEMORY_ENABLED", ""), True),
     )
 
 def setup_data_directory(config: Config) -> None:

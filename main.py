@@ -1,5 +1,7 @@
 import sys
+
 from cli.commands import execute
+
 
 def main():
     # If no args are provided (other than the script name), 

@@ -1,7 +1,7 @@
-import pytest
-from memory.types import MemoryType, MemoryLayer
 from memory.retrieval import LayeredRetriever
 from memory.storage import MemoryStore
+from memory.types import MemoryLayer, MemoryType
+
 
 def test_layered_retrieval(tmp_path):
     db_path = str(tmp_path / "test_retrieval.db")

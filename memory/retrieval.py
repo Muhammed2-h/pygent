@@ -1,10 +1,10 @@
+import datetime
+import logging
 import re
 import sqlite3
-import logging
-import datetime
-from typing import List, Dict
-from memory.types import MemoryType, MemoryLayer
+
 from memory.storage import MemoryStore
+from memory.types import MemoryLayer, MemoryType
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +20,7 @@ class LayeredRetriever:
     def __init__(self, store: MemoryStore):
         self.store = store
 
-    def retrieve(self, layer: MemoryLayer, query: str = "") -> List[dict]:
+    def retrieve(self, layer: MemoryLayer, query: str = "") -> list[dict]:
         allowed_types = self.LAYER_MAPPING.get(layer, [])
         if not allowed_types:
             return []
@@ -69,7 +69,7 @@ class LayeredRetriever:
             logger.error(f"Unexpected error during layered retrieval: {e}")
             raise
 
-    def rank(self, results: List[Dict]) -> List[Dict]:
+    def rank(self, results: list[dict]) -> list[dict]:
         """Rank results based on FTS relevance + confidence + verification + success rate + recency."""
         now = datetime.datetime.now(datetime.timezone.utc)
         
@@ -107,7 +107,7 @@ class LayeredRetriever:
             
         return sorted(results, key=score, reverse=True)
 
-    def search(self, query: str, types: List[str] = None) -> List[Dict]:
+    def search(self, query: str, types: list[str] = None) -> list[dict]:
         """Search memories and rank results."""
         if not query.strip():
             return []
@@ -135,7 +135,7 @@ class LayeredRetriever:
         results = [dict(row) for row in cursor.fetchall()]
         return self.rank(results)
 
-    def get_relevant_skills(self, query: str) -> List[Dict]:
+    def get_relevant_skills(self, query: str) -> list[dict]:
         """Search and rank skills based on query."""
         if not query.strip():
             sql = "SELECT *, 0.0 as rank FROM skills ORDER BY updated_at DESC LIMIT 50"
@@ -159,7 +159,7 @@ class LayeredRetriever:
         results = [dict(row) for row in cursor.fetchall()]
         return self.rank(results)
 
-    def get_environment_facts(self, query: str = "") -> List[Dict]:
+    def get_environment_facts(self, query: str = "") -> list[dict]:
         """Get and rank environment facts."""
         if query.strip():
             return self.search(query, types=[MemoryType.ENVIRONMENT, MemoryType.FACT])
@@ -174,7 +174,7 @@ class LayeredRetriever:
         results = [dict(row) for row in cursor.fetchall()]
         return self.rank(results)
 
-    def get_recent_lessons(self, query: str = "", limit: int = 5) -> List[Dict]:
+    def get_recent_lessons(self, query: str = "", limit: int = 5) -> list[dict]:
         """Get and rank recent lessons."""
         if query.strip():
             results = self.search(query, types=[MemoryType.LESSON])

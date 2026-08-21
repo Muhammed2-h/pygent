@@ -5,19 +5,19 @@ This package provides a comprehensive, structured browser engine for the agent.
 It contains modules for driving the browser, handling sessions, state, transport, and CDP.
 """
 
-from .driver import BrowserDriver
-from .transport import BrowserTransport
-from .session import BrowserSessionManager, Session
-from .observer import BrowserObserver
-from .state import BrowserState
 from .cdp import CDPClient
+from .driver import BrowserDriver
+from .observer import BrowserObserver
+from .session import BrowserSessionManager, Session
+from .state import BrowserState
+from .transport import BrowserTransport
 
 __all__ = [
     "BrowserDriver",
-    "BrowserTransport",
-    "BrowserSessionManager",
-    "Session",
     "BrowserObserver",
+    "BrowserSessionManager",
     "BrowserState",
+    "BrowserTransport",
     "CDPClient",
+    "Session",
 ]

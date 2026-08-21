@@ -1,7 +1,6 @@
 import datetime
-import os
+
 from tools import ToolRegistry
-import examples.obsolete_tools
 
 
 def test_tool_registry_calculate():

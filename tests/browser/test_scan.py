@@ -1,6 +1,9 @@
-import pytest
 import asyncio
+
+import pytest
+
 from browser.observer import BrowserObserver
+
 
 @pytest.mark.asyncio
 async def test_observer_scan(browser_env, local_server):
@@ -20,7 +23,7 @@ async def test_observer_scan(browser_env, local_server):
             break
         await asyncio.sleep(0.1)
     
-    observer = BrowserObserver(transport)
+    observer = BrowserObserver(driver)
     scan_res = None
     for _ in range(100):
         scan_res = await observer.scan(session_id, tab_id)

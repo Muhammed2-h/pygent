@@ -1,6 +1,8 @@
+
 import pytest
-import asyncio
+
 from browser.models import ExtensionRequest
+
 
 @pytest.mark.asyncio
 async def test_transport_connection(browser_env):

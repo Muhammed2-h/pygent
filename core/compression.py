@@ -16,7 +16,6 @@ Compresses:
 from __future__ import annotations
 
 import re
-from typing import List, Optional
 
 from models import Message
 
@@ -121,12 +120,12 @@ def _is_important(msg: Message) -> bool:
 
 
 def compress_history(
-    messages: List[Message],
+    messages: list[Message],
     *,
     keep_recent: int = DEFAULT_KEEP_RECENT,
     max_tool_result_len: int = MAX_TOOL_RESULT_LEN,
     max_assistant_content_len: int = MAX_ASSISTANT_CONTENT_LEN,
-) -> List[Message]:
+) -> list[Message]:
     """Return a compressed copy of *messages*.
 
     The last *keep_recent* messages are always returned verbatim.
@@ -164,7 +163,7 @@ def compress_history(
     n = len(messages)
     boundary = max(0, n - keep_recent)
 
-    result: List[Message] = []
+    result: list[Message] = []
     def _compress_tool(text: str) -> str:
         text = _strip_thinking(text)
         text = _BROWSER_OBSERVATION_RE.sub("[browser observation removed]", text)

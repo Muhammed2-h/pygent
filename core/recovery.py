@@ -8,9 +8,8 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class FailureType(str, Enum):
 
 
 # Ordered list – first match wins
-_CLASSIFICATION_RULES: List[tuple] = [
+_CLASSIFICATION_RULES: list[tuple] = [
     # (FailureType, compiled regex pattern applied to the error string)
     (FailureType.TRANSIENT, re.compile(
         r"(timeout|timed?\s*out|ETIMEDOUT|ECONNRESET|ECONNREFUSED"
@@ -157,7 +156,7 @@ class RecoveryRecommendation:
 
 
 # Default mapping from failure type → recovery recommendation
-_DEFAULT_RECOVERY: Dict[FailureType, RecoveryRecommendation] = {
+_DEFAULT_RECOVERY: dict[FailureType, RecoveryRecommendation] = {
     FailureType.TRANSIENT: RecoveryRecommendation(
         action=RecoveryAction.RETRY,
         reason="Transient failure – retrying may succeed.",
@@ -239,11 +238,11 @@ class RecoveryStrategy:
 
     def __init__(self, max_consecutive: int = 3):
         self.max_consecutive = max_consecutive
-        self._consecutive_counts: Dict[FailureType, int] = {}
-        self._history: List[ClassifiedFailure] = []
+        self._consecutive_counts: dict[FailureType, int] = {}
+        self._history: list[ClassifiedFailure] = []
 
     @property
-    def history(self) -> List[ClassifiedFailure]:
+    def history(self) -> list[ClassifiedFailure]:
         return list(self._history)
 
     def recommend(self, failure: ClassifiedFailure) -> RecoveryRecommendation:

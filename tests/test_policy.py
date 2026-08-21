@@ -1,5 +1,5 @@
-import pytest
 from browser.policy import BrowserPolicy, RiskLevel
+
 
 def test_risk_level_ordering():
     assert RiskLevel.DANGEROUS > RiskLevel.SENSITIVE

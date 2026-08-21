@@ -1,5 +1,5 @@
-import pytest
 from browser.state import BrowserState
+
 
 def test_browser_state_initialization():
     state = BrowserState()

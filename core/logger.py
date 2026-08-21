@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any
 
 SENSITIVE_KEYS = {
     "api_key", "apikey", "password", "pwd", "secret", "token", "auth",

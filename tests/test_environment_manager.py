@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
+
 from environment.manager import EnvironmentManager
 from models import EnvironmentCapability
 

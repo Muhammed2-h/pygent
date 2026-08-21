@@ -1,8 +1,7 @@
-import os
 import pytest
-from pathlib import Path
 
-from tools.filesystem import file_read, file_write, file_patch, normalize_and_check_path
+from tools.filesystem import file_patch, file_read, file_write, normalize_and_check_path
+
 
 def test_normalize_and_check_path_no_root(tmp_path):
     # Without root

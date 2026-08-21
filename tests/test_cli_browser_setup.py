@@ -1,7 +1,9 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, AsyncMock
-from cli.browser_setup import find_chrome, check_port, run_diagnostics
-import sys
+
+from cli.browser_setup import check_port, find_chrome, run_diagnostics
+
 
 def test_find_chrome():
     res = find_chrome()

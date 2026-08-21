@@ -1,5 +1,7 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
+
 from pydantic import BaseModel, Field, field_validator, model_validator
+
 from memory.privacy import PrivacyFilter
 
 _privacy_filter = PrivacyFilter()
@@ -8,15 +10,15 @@ class BrowserState(BaseModel):
     """Holds the current state of the browser."""
     model_config = {"validate_assignment": True}
     
-    active_tab: Optional[int] = None
-    tabs: List[int] = Field(default_factory=list)
-    current_url: Optional[str] = None
-    title: Optional[str] = None
-    page_signature: Optional[str] = None
-    last_action: Optional[Dict[str, Any]] = None
-    last_result: Optional[Dict[str, Any]] = None
-    navigation: List[str] = Field(default_factory=list)
-    new_tabs: List[int] = Field(default_factory=list)
+    active_tab: int | None = None
+    tabs: list[int] = Field(default_factory=list)
+    current_url: str | None = None
+    title: str | None = None
+    page_signature: str | None = None
+    last_action: dict[str, Any] | None = None
+    last_result: dict[str, Any] | None = None
+    navigation: list[str] = Field(default_factory=list)
+    new_tabs: list[int] = Field(default_factory=list)
 
     @model_validator(mode='before')
     @classmethod

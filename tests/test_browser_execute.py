@@ -1,8 +1,9 @@
+
 import pytest
-import asyncio
+
 from browser.driver import BrowserDriver
-from browser.transport import BrowserTransport
-from browser.models import ExtensionResponse, ExtensionRequest
+from browser.models import ExtensionResponse
+
 
 @pytest.mark.asyncio
 async def test_browser_execute_js_happy_path():

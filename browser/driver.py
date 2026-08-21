@@ -4,17 +4,18 @@ Browser Driver Module.
 Provides the main driver interface for interacting with the browser subsystem.
 """
 
-from typing import Any, Optional
-import time
-from browser.transport import BrowserTransport
-from browser.models import ExtensionRequest
-from browser.cdp import CDPClient
-from core.logger import browser_logger
 import asyncio
+import time
+
+from browser.cdp import CDPClient
+from browser.models import ExtensionRequest
+from browser.transport import BrowserTransport
+from core.logger import browser_logger
+
 
 class BrowserDriver:
     """Main driver for the browser engine."""
-    def __init__(self, transport: Optional[BrowserTransport] = None, session_manager=None):
+    def __init__(self, transport: BrowserTransport | None = None, session_manager=None):
         self.transport = transport
         self.session_manager = session_manager
 
@@ -80,9 +81,7 @@ class BrowserDriver:
         url_after = active_tab_after.get("url") if active_tab_after else None
         
         navigated = False
-        if url_before and url_after and url_before != url_after:
-            navigated = True
-        elif active_tab_before and not active_tab_after:
+        if url_before and url_after and url_before != url_after or active_tab_before and not active_tab_after:
             navigated = True
             
         new_tabs = [t for t in tabs_after if t.get("id") not in [tb.get("id") for tb in tabs_before]]

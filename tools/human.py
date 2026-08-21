@@ -1,6 +1,7 @@
-from typing import List, Optional
 import builtins
+
 from .registry import tool
+
 
 @tool(
     name="ask_user",
@@ -10,9 +11,9 @@ from .registry import tool
 )
 def tool_ask_user(
     question: str,
-    choices: Optional[List[str]] = None,
-    risk: Optional[str] = None,
-    reason: Optional[str] = None
+    choices: list[str] | None = None,
+    risk: str | None = None,
+    reason: str | None = None
 ) -> str:
     """
     Ask the user a question, optionally providing choices, stating a risk, or giving a reason.

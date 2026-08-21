@@ -1,12 +1,16 @@
-import pytest
-from datetime import datetime, timezone
-import time
-from memory.storage import MemoryStore
-from memory.retrieval import LayeredRetriever
-from memory.types import MemoryType, MemoryLayer
-from memory.lifecycle import ExtractedFact, ExtractedProcedure, _deduplicate_facts, _deduplicate_procedures, _is_generic_knowledge, _is_reasoning_chain
+from core.memory_service import MemoryService
+
+from memory.lifecycle import (
+    ExtractedFact,
+    _deduplicate_facts,
+    _is_generic_knowledge,
+    _is_reasoning_chain,
+)
 from memory.privacy import PrivacyFilter
-from memory.service import MemoryService
+from memory.retrieval import LayeredRetriever
+from memory.storage import MemoryStore
+from memory.types import MemoryLayer, MemoryType
+
 
 def test_duplicate_memories(tmp_path):
     store = MemoryStore(str(tmp_path / "test_dup.db"))

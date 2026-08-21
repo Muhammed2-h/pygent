@@ -1,6 +1,8 @@
+
 import pytest
-import asyncio
+
 from browser.observer import BrowserObserver
+
 
 class DummyDriver:
     async def _enumerate_tabs(self, session_id):

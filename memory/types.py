@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class MemoryType(str, Enum):
     FACT = "fact"
     ENVIRONMENT = "environment"

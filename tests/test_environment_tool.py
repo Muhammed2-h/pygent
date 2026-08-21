@@ -1,6 +1,7 @@
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
+
 from tools.environment import tool_env_expand
+
 
 def test_env_expand_success():
     with patch("tools.environment.EnvironmentManager") as MockManager:

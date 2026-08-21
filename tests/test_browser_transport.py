@@ -1,10 +1,12 @@
 import asyncio
-import pytest
-from aiohttp import ClientSession, WSMsgType
-from browser.transport import BrowserTransport
-from browser.models import ExtensionRequest
 
+import pytest
 import pytest_asyncio
+from aiohttp import ClientSession, WSMsgType
+
+from browser.models import ExtensionRequest
+from browser.transport import BrowserTransport
+
 
 @pytest_asyncio.fixture
 async def transport():

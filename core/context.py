@@ -1,6 +1,8 @@
 import json
-from typing import List, Optional, Any
+from typing import Any
+
 from models import Message
+
 
 def truncate_dict_strings(d: Any, max_len: int = 2000) -> Any:
     if isinstance(d, dict):
@@ -20,7 +22,7 @@ class ContextBuilder:
         environment_manager=None,
         memory_service=None
     ):
-        self.messages: List[Message] = []
+        self.messages: list[Message] = []
         self.prompt_builder = prompt_builder
         self.environment_manager = environment_manager
         self.memory_service = memory_service
@@ -29,11 +31,11 @@ class ContextBuilder:
         self, 
         system_prompt: str, 
         user_input: str,
-        checkpoint: Optional[str] = None,
-        history: Optional[List[Message]] = None,
+        checkpoint: str | None = None,
+        history: list[Message] | None = None,
         max_history: int = 10,
-        browser_state: Optional[Any] = None
-    ) -> List[Message]:
+        browser_state: Any | None = None
+    ) -> list[Message]:
         """
         Builds the context dynamically according to:
         1. system rules
@@ -117,7 +119,7 @@ class ContextBuilder:
         return context
 
     # Keep build() for backward compatibility with older tests/usages
-    def build(self, system_prompt: str, user_input: str) -> List[Message]:
+    def build(self, system_prompt: str, user_input: str) -> list[Message]:
         if not self.messages:
             self.messages.append(Message(role="system", content=system_prompt))
         else:

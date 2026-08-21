@@ -1,6 +1,8 @@
 from config import Config
+
 from .base import BaseProvider
 from .openai_provider import OpenAIProvider
+
 
 def create_provider(config: Config) -> BaseProvider:
     provider_type = getattr(config, "provider", "openai")

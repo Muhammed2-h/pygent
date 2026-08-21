@@ -1,8 +1,9 @@
 """Tests for the browser session manager."""
 
-import pytest
 from datetime import datetime, timezone
+
 from browser.session import BrowserSessionManager, Session
+
 
 def create_session(session_id: str, tab_id: str, active: bool = False, url: str = "http://example.com") -> Session:
     return Session(

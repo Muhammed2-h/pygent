@@ -1,7 +1,9 @@
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-import asyncio
-from unittest.mock import patch, AsyncMock, MagicMock
+
 from cli.browser_repl import async_start_browser_repl
+
 
 @pytest.mark.asyncio
 async def test_browser_repl_managed(monkeypatch, tmp_path):

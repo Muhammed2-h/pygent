@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional
-from models import Message, AgentResponse
+
+from models import AgentResponse, Message
 
 
 class BaseProvider(ABC):
     @abstractmethod
     def complete(
         self,
-        messages: List[Message],
+        messages: list[Message],
         model: str,
-        tools: Optional[List[dict]] = None,
+        tools: list[dict] | None = None,
     ) -> AgentResponse:
         pass

@@ -1,7 +1,8 @@
+import hashlib
 import html
 import html.parser
-from typing import Any, Dict, List, Optional
-import hashlib
+from typing import Any
+
 
 class SimplifiedHTMLParser(html.parser.HTMLParser):
     def __init__(self):
@@ -213,7 +214,7 @@ class BrowserObserver:
         parser.feed(html_content)
         return " ".join(parser.text)
 
-    def extract_interactive_elements(self, html_content: str) -> List[Dict[str, Any]]:
+    def extract_interactive_elements(self, html_content: str) -> list[dict[str, Any]]:
         """Extract interactive elements like links and buttons from HTML."""
         parser = InteractiveExtractor()
         parser.feed(html_content)
@@ -229,7 +230,7 @@ class BrowserObserver:
         truncator.feed(html_content)
         return truncator.get_result()
 
-    async def scan(self, session_id: str, tab_id: int, options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    async def scan(self, session_id: str, tab_id: int, options: dict[str, Any] | None = None) -> dict[str, Any]:
         if options is None:
             options = {}
             
@@ -239,7 +240,7 @@ class BrowserObserver:
 
         # Retrieve tabs first
         try:
-            tabs = await self.driver._enumerate_tabs(session_id)
+            tabs = await self.driver.enumerate_tabs(session_id)
         except Exception:
             tabs = []
         

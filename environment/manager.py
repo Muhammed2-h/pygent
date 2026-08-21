@@ -1,10 +1,12 @@
-import subprocess
-import shlex
-import re
 import logging
-from typing import Dict, Optional, Callable, Any, Tuple
+import re
+import shlex
+import subprocess
+from collections.abc import Callable
+from typing import Any
 
 from models import EnvironmentCapability
+
 from .probe import probe_all, probe_capability
 
 logger = logging.getLogger(__name__)
@@ -14,7 +16,7 @@ class EnvironmentManager:
     Manages environment capabilities, orchestrating probes, repairs, and persisting facts.
     """
 
-    def __init__(self, confirmation_callback: Optional[Callable[[str], bool]] = None, memory_store: Any = None):
+    def __init__(self, confirmation_callback: Callable[[str], bool] | None = None, memory_store: Any = None):
         """
         Initialize the EnvironmentManager.
         
@@ -27,11 +29,11 @@ class EnvironmentManager:
         self.confirmation_callback = confirmation_callback or (lambda prompt: False)
         self.memory_store = memory_store
 
-    def check_capabilities(self) -> Dict[str, EnvironmentCapability]:
+    def check_capabilities(self) -> dict[str, EnvironmentCapability]:
         """Run all probes and return current capabilities."""
         return probe_all()
 
-    def get_capability(self, name: str) -> Optional[EnvironmentCapability]:
+    def get_capability(self, name: str) -> EnvironmentCapability | None:
         """Get a specific capability by name using targeted probe."""
         return probe_capability(name)
 
@@ -54,7 +56,7 @@ class EnvironmentManager:
                 return True
         return False
 
-    def repair_or_install(self, name: str, install_command: str, reason: str = "") -> Tuple[bool, str]:
+    def repair_or_install(self, name: str, install_command: str, reason: str = "") -> tuple[bool, str]:
         """
         Attempt to repair or install a capability.
         Requires confirmation for system-level changes.
@@ -87,7 +89,7 @@ class EnvironmentManager:
         except Exception as e:
             return False, str(e)
 
-    def verify_and_persist(self, name: str) -> Tuple[bool, str]:
+    def verify_and_persist(self, name: str) -> tuple[bool, str]:
         """
         Verify that a capability is available and persist the fact.
         Returns (success, message).
@@ -109,7 +111,7 @@ class EnvironmentManager:
         else:
             logger.debug(f"persist_fact called but memory_store is None (title: '{title}')")
 
-    def ensure_capability(self, name: str, install_command: Optional[str] = None, reason: str = "") -> Tuple[bool, str]:
+    def ensure_capability(self, name: str, install_command: str | None = None, reason: str = "") -> tuple[bool, str]:
         """
         Orchestrate the full workflow:
         probe -> capability missing? -> repair/install -> verify -> persist fact

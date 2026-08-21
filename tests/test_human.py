@@ -1,6 +1,7 @@
-import pytest
 from unittest.mock import patch
+
 from tools.human import tool_ask_user
+
 
 def test_ask_user_basic():
     with patch("builtins.input", return_value="yes") as mock_input:

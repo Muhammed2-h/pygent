@@ -1,26 +1,27 @@
-import sys
 import asyncio
-import subprocess
 import shutil
+import subprocess
+import sys
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
+from core.memory_service import MemoryService
+
+from browser.cdp import CDPClient
+from browser.driver import BrowserDriver
+from browser.observer import BrowserObserver
+from browser.session import BrowserSessionManager, Session
+from browser.transport import BrowserTransport
 from config import load_config
+from core.agent import Agent
+from memory.privacy import PrivacyFilter
+from memory.storage import MemoryStore
 from providers.factory import create_provider
 from tools import ToolRegistry
-from agent import Agent
-from memory.storage import MemoryStore
-from memory.privacy import PrivacyFilter
-from memory.service import MemoryService
 from tools.browser import setup_browser_tools
 from tools.registry import set_main_loop
 
-from browser.transport import BrowserTransport
-from browser.driver import BrowserDriver
-from browser.session import BrowserSessionManager, Session
-from browser.cdp import CDPClient
-from browser.observer import BrowserObserver
-from datetime import datetime
 
 def find_chrome() -> str:
     candidates = [

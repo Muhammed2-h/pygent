@@ -1,8 +1,7 @@
-import json
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Dict, Any, Optional, List
+from typing import Any
 
 from memory.storage import MemoryStore
 from memory.types import MemoryType
@@ -11,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class MemoryCheckpoint:
     def __init__(self, max_tokens: int = 300, chars_per_token: int = 4):
-        self._checkpoint: Dict[str, Any] = {}
+        self._checkpoint: dict[str, Any] = {}
         self.max_tokens = max_tokens
         self.chars_per_token = chars_per_token
         self.max_chars = max_tokens * chars_per_token
@@ -19,11 +18,11 @@ class MemoryCheckpoint:
 
     def update_checkpoint(
         self,
-        objective: Optional[str] = None,
-        constraints: Optional[List[str]] = None,
-        important_findings: Optional[List[str]] = None,
-        failed_attempts: Optional[List[str]] = None,
-        next_action: Optional[str] = None
+        objective: str | None = None,
+        constraints: list[str] | None = None,
+        important_findings: list[str] | None = None,
+        failed_attempts: list[str] | None = None,
+        next_action: str | None = None
     ) -> None:
         if objective is not None:
             self._checkpoint["objective"] = objective
@@ -95,7 +94,7 @@ class FinalizationResult:
     facts_persisted: int = 0
     procedures_persisted: int = 0
     items_rejected: int = 0
-    details: List[str] = field(default_factory=list)
+    details: list[str] = field(default_factory=list)
 
 
 # Patterns that indicate content should be rejected
@@ -156,7 +155,7 @@ def _is_generic_knowledge(text: str) -> bool:
     return any(lower == gk for gk in _GENERIC_KNOWLEDGE)
 
 
-def _is_failed_experiment(entry: Dict[str, Any]) -> bool:
+def _is_failed_experiment(entry: dict[str, Any]) -> bool:
     """Check if an execution entry represents a failed experiment."""
     if entry.get("success") is False or entry.get("ok") is False:
         return True
@@ -167,10 +166,10 @@ def _is_failed_experiment(entry: Dict[str, Any]) -> bool:
 
 
 def _deduplicate_facts(
-    facts: List[ExtractedFact], store: MemoryStore
-) -> List[ExtractedFact]:
+    facts: list[ExtractedFact], store: MemoryStore
+) -> list[ExtractedFact]:
     """Remove facts that already exist in the store."""
-    unique: List[ExtractedFact] = []
+    unique: list[ExtractedFact] = []
     seen_contents: set = set()
     for fact in facts:
         normalised = fact.content.strip().lower()
@@ -193,10 +192,10 @@ def _deduplicate_facts(
 
 
 def _deduplicate_procedures(
-    procedures: List[ExtractedProcedure], store: MemoryStore
-) -> List[ExtractedProcedure]:
+    procedures: list[ExtractedProcedure], store: MemoryStore
+) -> list[ExtractedProcedure]:
     """Remove procedures whose name already exists in the skills table."""
-    unique: List[ExtractedProcedure] = []
+    unique: list[ExtractedProcedure] = []
     seen_names: set = set()
     for proc in procedures:
         norm_name = proc.name.strip().lower()
@@ -208,9 +207,9 @@ def _deduplicate_procedures(
     return unique
 
 
-def _extract_facts(history: List[Dict[str, Any]]) -> List[ExtractedFact]:
+def _extract_facts(history: list[dict[str, Any]]) -> list[ExtractedFact]:
     """Extract verified facts from execution history entries."""
-    facts: List[ExtractedFact] = []
+    facts: list[ExtractedFact] = []
     for entry in history:
         if _is_failed_experiment(entry):
             continue
@@ -243,10 +242,10 @@ def _extract_facts(history: List[Dict[str, Any]]) -> List[ExtractedFact]:
 
 
 def _extract_procedures(
-    history: List[Dict[str, Any]],
-) -> List[ExtractedProcedure]:
+    history: list[dict[str, Any]],
+) -> list[ExtractedProcedure]:
     """Extract successful procedures from execution history entries."""
-    procedures: List[ExtractedProcedure] = []
+    procedures: list[ExtractedProcedure] = []
     for entry in history:
         if _is_failed_experiment(entry):
             continue
@@ -277,7 +276,7 @@ def _extract_procedures(
 
 
 def finalize_task_memory(
-    history: List[Dict[str, Any]],
+    history: list[dict[str, Any]],
     store: MemoryStore,
 ) -> FinalizationResult:
     """Inspect completed-task execution history and persist useful info.

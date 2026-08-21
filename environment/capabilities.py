@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+
 class Capability(BaseModel):
     available: bool = False
     configured: bool = False

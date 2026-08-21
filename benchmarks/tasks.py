@@ -8,9 +8,10 @@ callable that executes the task against a live browser.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Awaitable, Optional
+from typing import Any
 
 
 class TaskCategory(str, Enum):
@@ -74,10 +75,10 @@ class BenchmarkTask:
     description: str
     category: TaskCategory
     difficulty: TaskDifficulty
-    fixture_page: Optional[str] = None
+    fixture_page: str | None = None
     expected_outcome: dict[str, Any] = field(default_factory=lambda: {"success": True})
     tags: tuple[str, ...] = ()
-    executor: Optional[TaskExecutor] = None
+    executor: TaskExecutor | None = None
 
     # ------------------------------------------------------------------
     # Convenience helpers
@@ -91,9 +92,9 @@ class BenchmarkTask:
     def matches_filter(
         self,
         *,
-        category: Optional[TaskCategory] = None,
-        difficulty: Optional[TaskDifficulty] = None,
-        tags: Optional[set[str]] = None,
+        category: TaskCategory | None = None,
+        difficulty: TaskDifficulty | None = None,
+        tags: set[str] | None = None,
     ) -> bool:
         """Return ``True`` if the task matches **all** supplied filters."""
         if category is not None and self.category != category:
@@ -331,9 +332,9 @@ def get_task(task_id: str) -> BenchmarkTask:
 
 def filter_tasks(
     *,
-    category: Optional[TaskCategory] = None,
-    difficulty: Optional[TaskDifficulty] = None,
-    tags: Optional[set[str]] = None,
+    category: TaskCategory | None = None,
+    difficulty: TaskDifficulty | None = None,
+    tags: set[str] | None = None,
 ) -> list[BenchmarkTask]:
     """Return the subset of ``BENCHMARK_TASKS`` matching all supplied filters."""
     return [

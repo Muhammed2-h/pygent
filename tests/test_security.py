@@ -1,12 +1,13 @@
-import pytest
-import os
 import json
-from unittest.mock import patch
+import os
 
-from tools.filesystem import file_read, file_write
-from tools.code import execute_code
-from memory.privacy import PrivacyFilter
+import pytest
+
 from browser.policy import BrowserPolicy, RiskLevel
+from memory.privacy import PrivacyFilter
+from tools.code import execute_code
+from tools.filesystem import file_read, file_write
+
 
 # 1. Secret redaction
 def test_secret_redaction():
@@ -17,8 +18,9 @@ def test_secret_redaction():
 # 2. Path Traversal
 def test_path_traversal():
     os.environ["AGENT_WORKSPACE"] = "/tmp/workspace"
-    from tools.filesystem import normalize_and_check_path
     from pathlib import Path
+
+    from tools.filesystem import normalize_and_check_path
     
     # Check exact exception type for path traversal attempts
     with pytest.raises(ValueError, match="Access denied"):
@@ -80,8 +82,6 @@ def test_unsafe_browser_action():
 def test_confirmation_bypass():
     # If the user tries to bypass confirmation by passing declared_risk="safe" 
     # but the action is dangerous.
-    from tools.browser import browser_execute_js
-    import asyncio
     
     policy = BrowserPolicy()
     # Let's say they obfuscate JS. We should catch it.

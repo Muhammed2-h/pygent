@@ -1,7 +1,8 @@
+import json
+import re
 from enum import Enum
 from functools import total_ordering
-import re
-import json
+
 
 @total_ordering
 class RiskLevel(Enum):

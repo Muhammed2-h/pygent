@@ -1,7 +1,7 @@
-import pytest
-from core.context import ContextBuilder
 from core.compression import compress_history
+from core.context import ContextBuilder
 from models import Message
+
 
 def test_context_limits_long_conversation():
     builder = ContextBuilder()

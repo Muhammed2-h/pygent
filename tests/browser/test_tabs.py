@@ -1,5 +1,7 @@
-import pytest
 import asyncio
+
+import pytest
+
 
 @pytest.mark.asyncio
 async def test_enumerate_tabs(browser_env, local_server):

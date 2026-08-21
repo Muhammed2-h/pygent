@@ -1,12 +1,20 @@
 import time
-from typing import List, Optional
-from models import Message, ToolCall
-from core.state import AgentState
+
 from core.context import ContextBuilder
-from core.events import EventBus, TurnStartEvent, LLMRequestEvent, LLMResponseEvent, ToolExecutionEvent, ToolResultEvent
+from core.events import (
+    EventBus,
+    LLMRequestEvent,
+    LLMResponseEvent,
+    ToolExecutionEvent,
+    ToolResultEvent,
+    TurnStartEvent,
+)
 from core.logger import agent_logger
+from core.state import AgentState
+from models import Message
 from providers.base import BaseProvider
 from tools import ToolRegistry
+
 
 class AgentLoop:
     def __init__(self, provider: BaseProvider, tools: ToolRegistry, model: str, context: ContextBuilder, state: AgentState, events: EventBus):
@@ -17,7 +25,7 @@ class AgentLoop:
         self.state = state
         self.events = events
 
-    def run(self, system_prompt: str, user_input: str) -> List[Message]:
+    def run(self, system_prompt: str, user_input: str) -> list[Message]:
         self.state.messages = self.context.build_context(system_prompt, user_input)
         self.state.new_messages = []
         
@@ -131,7 +139,7 @@ class AgentLoop:
                         user_msg = Message(role="user", content=f"User responded to loop guard: {ans}")
                         self.state.messages.append(user_msg)
                         self.state.new_messages.append(user_msg)
-                except Exception as e:
+                except Exception:
                     self._terminate_loop_with_summary("Infinite loop detected and ask_user failed.")
                     break
 

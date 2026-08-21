@@ -1,10 +1,14 @@
 import argparse
 from pathlib import Path
-from config import load_config, setup_data_directory
-from memory.storage import MemoryStore
+
 from memory.service import MemoryService
+
+from config import load_config, setup_data_directory
 from memory.privacy import PrivacyFilter
+from memory.storage import MemoryStore
+
 from .repl import start_repl
+
 
 def handle_check(db_path: str, skills_dir: str, config):
     print("Checking Configuration...")

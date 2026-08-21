@@ -2,13 +2,13 @@
 
 from browser import (
     BrowserDriver,
-    BrowserTransport,
-    BrowserSessionManager,
-    Session,
     BrowserObserver,
+    BrowserSessionManager,
     BrowserState,
-    CDPClient
+    BrowserTransport,
+    CDPClient,
 )
+
 
 def test_browser_imports():
     """Test that all major browser components can be imported and instantiated."""

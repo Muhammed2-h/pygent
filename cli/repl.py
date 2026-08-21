@@ -1,12 +1,12 @@
-import sys
-from pathlib import Path
+from agent import Agent
+from memory.service import MemoryService
+
 from config import load_config
+from memory.privacy import PrivacyFilter
+from memory.storage import MemoryStore
 from providers.factory import create_provider
 from tools import ToolRegistry
-from agent import Agent
-from memory.storage import MemoryStore
-from memory.privacy import PrivacyFilter
-from memory.service import MemoryService
+
 
 def start_repl(db_path: str, skills_dir: str):
     config = load_config()

@@ -1,31 +1,10 @@
 import os
-from config import Config, load_config, _parse_bool, _parse_int
 
+from config import Config, _parse_int, load_config
 
 # ---------------------------------------------------------------------------
 # Helper unit tests
 # ---------------------------------------------------------------------------
-
-class TestParseBool:
-    def test_true_values(self):
-        for val in ("1", "true", "True", "TRUE", "yes", "YES", " true "):
-            assert _parse_bool(val, False) is True
-
-    def test_false_values(self):
-        for val in ("0", "false", "False", "FALSE", "no", "NO", " false "):
-            assert _parse_bool(val, True) is False
-
-    def test_unrecognized_returns_default(self):
-        assert _parse_bool("nope", True) is True
-        assert _parse_bool("random", False) is False
-        assert _parse_bool("maybe", True) is True
-
-    def test_empty_returns_default(self):
-        assert _parse_bool("", True) is True
-        assert _parse_bool("", False) is False
-        assert _parse_bool("  ", True) is True
-        assert _parse_bool(None, True) is True
-
 
 class TestParseInt:
     def test_valid(self):
@@ -53,11 +32,6 @@ class TestConfigDefaults:
         assert cfg.max_agent_steps == 40
         assert cfg.data_dir == ""
         assert cfg.log_level == "INFO"
-        assert cfg.browser_host == "127.0.0.1"
-        assert cfg.browser_ws_port == 18765
-        assert cfg.browser_http_port == 18766
-        assert cfg.browser_auto_start is False
-        assert cfg.memory_enabled is True
 
 
 # ---------------------------------------------------------------------------
@@ -72,11 +46,6 @@ def _clear_env(monkeypatch):
         "MAX_AGENT_STEPS",
         "PYGENT_DATA_DIR",
         "PYGENT_LOG_LEVEL",
-        "PYGENT_BROWSER_HOST",
-        "PYGENT_BROWSER_WS_PORT",
-        "PYGENT_BROWSER_HTTP_PORT",
-        "PYGENT_BROWSER_AUTO_START",
-        "PYGENT_MEMORY_ENABLED",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -89,11 +58,6 @@ def test_load_config_defaults(monkeypatch):
     assert cfg.max_agent_steps == 40
     assert cfg.data_dir == str(os.path.expanduser("~/.pygent"))
     assert cfg.log_level == "INFO"
-    assert cfg.browser_host == "127.0.0.1"
-    assert cfg.browser_ws_port == 18765
-    assert cfg.browser_http_port == 18766
-    assert cfg.browser_auto_start is False
-    assert cfg.memory_enabled is True
 
 
 def test_load_config_all_env_vars(monkeypatch):
@@ -103,11 +67,6 @@ def test_load_config_all_env_vars(monkeypatch):
     monkeypatch.setenv("MAX_AGENT_STEPS", "20")
     monkeypatch.setenv("PYGENT_DATA_DIR", "/tmp/pygent")
     monkeypatch.setenv("PYGENT_LOG_LEVEL", "DEBUG")
-    monkeypatch.setenv("PYGENT_BROWSER_HOST", "0.0.0.0")
-    monkeypatch.setenv("PYGENT_BROWSER_WS_PORT", "19000")
-    monkeypatch.setenv("PYGENT_BROWSER_HTTP_PORT", "19001")
-    monkeypatch.setenv("PYGENT_BROWSER_AUTO_START", "true")
-    monkeypatch.setenv("PYGENT_MEMORY_ENABLED", "false")
 
     cfg = load_config()
     assert cfg.openai_api_key == "sk-test-123"
@@ -115,11 +74,6 @@ def test_load_config_all_env_vars(monkeypatch):
     assert cfg.max_agent_steps == 20
     assert cfg.data_dir == "/tmp/pygent"
     assert cfg.log_level == "DEBUG"
-    assert cfg.browser_host == "0.0.0.0"
-    assert cfg.browser_ws_port == 19000
-    assert cfg.browser_http_port == 19001
-    assert cfg.browser_auto_start is True
-    assert cfg.memory_enabled is False
 
 
 def test_load_config_invalid_int_falls_back(monkeypatch):

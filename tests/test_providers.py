@@ -1,7 +1,9 @@
 import json
 from unittest.mock import MagicMock, patch
+
 import pytest
-from models import Message, ToolCall, AgentResponse
+
+from models import AgentResponse, Message, ToolCall
 from providers.base import BaseProvider
 from providers.openai_provider import OpenAIProvider
 
@@ -170,6 +172,7 @@ def test_openai_provider_translates_message_history_with_tool_calls_and_tool_res
 from config import Config
 from providers.factory import create_provider
 
+
 def test_create_provider_openai():
     config = Config(provider="openai", openai_api_key="test-key")
     provider = create_provider(config)
@@ -187,7 +190,9 @@ def test_create_provider_unsupported():
         create_provider(config)
 
 import openai
+
 import tools.registry
+
 
 def test_openai_provider_empty_response():
     provider = OpenAIProvider("fake_key")

@@ -1,4 +1,4 @@
-from models import Message, ToolCall, AgentResponse
+from models import AgentResponse, Message, ToolCall
 
 
 def test_message_creation():

@@ -1,5 +1,6 @@
 from environment.capabilities import Capability, CapabilityRegistry
 
+
 def test_capability_defaults():
     cap = Capability()
     assert not cap.available

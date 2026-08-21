@@ -1,8 +1,9 @@
 import json
 import time
+
 import openai
-from typing import List, Optional
 from openai import OpenAI
+
 from models import AgentResponse, Message, ToolCall
 from providers.base import BaseProvider
 
@@ -13,9 +14,9 @@ class OpenAIProvider(BaseProvider):
 
     def complete(
         self,
-        messages: List[Message],
+        messages: list[Message],
         model: str,
-        tools: Optional[List[dict]] = None,
+        tools: list[dict] | None = None,
     ) -> AgentResponse:
         api_messages = []
         for m in messages:
@@ -53,7 +54,7 @@ class OpenAIProvider(BaseProvider):
                     response = self.client.chat.completions.create(**kwargs)
                     success = True
                     break
-                except (openai.RateLimitError, openai.APIConnectionError) as e:
+                except (openai.RateLimitError, openai.APIConnectionError):
                     if attempt == max_retries - 1:
                         raise
                     time.sleep(retry_delay)
@@ -80,7 +81,7 @@ class OpenAIProvider(BaseProvider):
                 if first_non_system_idx != -1:
                     msg_to_drop = kwargs["messages"][first_non_system_idx]
                     dropped_tool_call_ids = set()
-                    if "tool_calls" in msg_to_drop and msg_to_drop["tool_calls"]:
+                    if msg_to_drop.get("tool_calls"):
                         for tc in msg_to_drop["tool_calls"]:
                             dropped_tool_call_ids.add(tc["id"])
                     

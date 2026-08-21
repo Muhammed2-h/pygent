@@ -1,7 +1,8 @@
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from models import Message
-import cli.commands
+
 
 def test_cli_check_command_with_key(monkeypatch, tmp_path, capsys):
     test_db = str(tmp_path / "test_mem.db")

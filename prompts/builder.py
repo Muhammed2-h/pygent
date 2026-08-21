@@ -1,15 +1,15 @@
-import os
 from pathlib import Path
-from typing import Optional, Set
+
 from tools.registry import ToolRegistry
 
+
 class PromptBuilder:
-    def __init__(self, prompts_dir: Optional[str] = None):
+    def __init__(self, prompts_dir: str | None = None):
         if prompts_dir is None:
             prompts_dir = Path(__file__).parent
         self.prompts_dir = Path(prompts_dir)
         
-    def build(self, tools: Optional[ToolRegistry] = None, **kwargs) -> str:
+    def build(self, tools: ToolRegistry | None = None, **kwargs) -> str:
         parts = []
         
         system_path = self.prompts_dir / "system.md"
@@ -20,7 +20,7 @@ class PromptBuilder:
         if evolution_path.exists():
             parts.append(evolution_path.read_text().strip())
             
-        categories: Set[str] = set()
+        categories: set[str] = set()
         if tools is not None:
             for tool in tools.tools.values():
                 if hasattr(tool, 'category') and tool.category:

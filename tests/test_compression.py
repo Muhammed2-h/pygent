@@ -1,18 +1,13 @@
 """Tests for core.compression — context compression for older history."""
 
-import pytest
-from models import Message
 from core.compression import (
-    compress_history,
     COMPRESSED_MARKER,
-    DEFAULT_KEEP_RECENT,
-    MAX_TOOL_RESULT_LEN,
-    MAX_ASSISTANT_CONTENT_LEN,
+    _is_important,
     _strip_thinking,
     _truncate,
-    _is_important,
+    compress_history,
 )
-
+from models import Message
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 

@@ -1,22 +1,22 @@
-import json
 import asyncio
 import functools
-from typing import Any, Dict, Optional, Union
-from browser.driver import BrowserDriver
-from browser.transport import BrowserTransport
-from browser.session import BrowserSessionManager
+import json
+from typing import Any
+
 from browser.cdp import CDPClient
+from browser.driver import BrowserDriver
 from browser.observer import BrowserObserver
-from .registry import tool
 from browser.policy import BrowserPolicy, RiskLevel
+from browser.session import BrowserSessionManager
+from memory.privacy import PrivacyFilter
 from tools.human import tool_ask_user
 
-from memory.privacy import PrivacyFilter
+from .registry import tool
 
-_driver: Optional[BrowserDriver] = None
-_session_manager: Optional[BrowserSessionManager] = None
-_observer: Optional[BrowserObserver] = None
-_cdp: Optional[CDPClient] = None
+_driver: BrowserDriver | None = None
+_session_manager: BrowserSessionManager | None = None
+_observer: BrowserObserver | None = None
+_cdp: CDPClient | None = None
 _policy = BrowserPolicy()
 _privacy = PrivacyFilter()
 
@@ -61,7 +61,7 @@ def browser_sessions() -> str:
     description="Scan the DOM of the specified browser tab to extract interactive elements and text. Use this to understand the page structure, find elements to interact with, and get references for subsequent actions.",
     category="browser"
 )
-async def browser_scan(session_id: str, tab_id: Union[int, str], max_chars: int = 0, tabs_only: bool = False, text_only: bool = False) -> str:
+async def browser_scan(session_id: str, tab_id: int | str, max_chars: int = 0, tabs_only: bool = False, text_only: bool = False) -> str:
     """
     Scans the browser tab DOM.
     Returns JSON containing 'html', 'interactive_elements', 'tabs', and 'element_references'.
@@ -87,7 +87,7 @@ async def browser_scan(session_id: str, tab_id: Union[int, str], max_chars: int 
     description="Execute custom JavaScript in the specified browser tab. Use this to interact with the DOM, trigger events, extract custom data, or modify page state. Note: this runs in the context of the page, so variables and functions are isolated per page load.",
     category="browser"
 )
-async def browser_execute_js(session_id: str, tab_id: Union[int, str], script: str, declared_risk: str = "safe") -> str:
+async def browser_execute_js(session_id: str, tab_id: int | str, script: str, declared_risk: str = "safe") -> str:
     """
     Executes a script in the specified tab. 
     Returns JSON containing the execution 'result', a 'navigated' boolean, and any 'new_tabs' detected.
@@ -118,7 +118,7 @@ async def browser_execute_js(session_id: str, tab_id: Union[int, str], script: s
     description="Send a raw Chrome DevTools Protocol (CDP) command to the browser tab. Use this for low-level browser automation (e.g., simulating complex input events, overriding network responses, manipulating the box model, etc.). Requires familiarity with CDP methods and parameters.",
     category="browser"
 )
-async def browser_cdp(session_id: str, tab_id: Union[int, str], method: str, params: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None, declared_risk: str = "safe") -> str:
+async def browser_cdp(session_id: str, tab_id: int | str, method: str, params: dict[str, Any] | None = None, timeout: float | None = None, declared_risk: str = "safe") -> str:
     """
     Executes a CDP command via the browser's debugger API.
     """
@@ -148,7 +148,7 @@ async def browser_cdp(session_id: str, tab_id: Union[int, str], method: str, par
     description="Capture a screenshot of the current page in the specified browser tab. Use this when visual context is needed to verify UI state, or to confirm if a specific action (like a click or navigation) succeeded visually.",
     category="browser"
 )
-async def browser_screenshot(session_id: str, tab_id: Union[int, str]) -> str:
+async def browser_screenshot(session_id: str, tab_id: int | str) -> str:
     """
     Captures a screenshot using CDP. Returns JSON with 'base64', 'mime_type', 'width', and 'height'.
     """

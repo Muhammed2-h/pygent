@@ -1,9 +1,10 @@
-import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 from browser.driver import BrowserDriver
 from browser.models import ExtensionResponse
+
 
 @pytest.mark.asyncio
 async def test_browser_screenshot():

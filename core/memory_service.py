@@ -1,9 +1,9 @@
 import time
-from core.logger import memory_logger
-import re
 from datetime import datetime, timezone
-from memory.storage import MemoryStore
+
+from core.logger import memory_logger
 from memory.privacy import PrivacyFilter
+from memory.storage import MemoryStore
 
 
 class MemoryService:

@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -67,8 +66,8 @@ class MetricsCollector:
     """
 
     def __init__(self) -> None:
-        self._start_time: Optional[float] = None
-        self._end_time: Optional[float] = None
+        self._start_time: float | None = None
+        self._end_time: float | None = None
         self._turn_count: int = 0
         self._tool_calls: int = 0
         self._recovery_count: int = 0

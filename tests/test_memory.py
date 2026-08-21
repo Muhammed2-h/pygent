@@ -1,5 +1,5 @@
 import os
-import pytest
+
 from memory.storage import MemoryStore
 
 
@@ -125,8 +125,9 @@ def test_privacy_filter_structured_formats():
     assert ", other_header=xyz" in scrubbed_headers
 
 def test_memory_service(tmp_path):
-    from memory.privacy import PrivacyFilter
     from memory.service import MemoryService
+
+    from memory.privacy import PrivacyFilter
 
     db_path = str(tmp_path / "test_memory_svc.db")
     store = MemoryStore(db_path)
@@ -144,8 +145,10 @@ def test_memory_service(tmp_path):
 
 def test_memory_service_standalone_and_edge_cases():
     import os
-    from memory.privacy import PrivacyFilter
+
     from memory.service import MemoryService
+
+    from memory.privacy import PrivacyFilter
 
     db_path = "test_memory_svc_standalone.db"
     if os.path.exists(db_path):

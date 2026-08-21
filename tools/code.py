@@ -4,9 +4,10 @@ import subprocess
 import sys
 import tempfile
 import threading
-from typing import Literal, Optional
+from typing import Literal
 
 from .registry import tool
+
 
 @tool(
     name="execute_code",
@@ -18,7 +19,7 @@ def execute_code(
     language: Literal["python", "bash", "powershell"],
     code: str,
     timeout: int = 60,
-    cwd: Optional[str] = None,
+    cwd: str | None = None,
     stdout_limit: int = 10000,
     stderr_limit: int = 10000,
 ) -> str:
@@ -29,8 +30,7 @@ def execute_code(
             normalize_and_check_path(cwd)
         except ValueError as e:
             return json.dumps({"exit_code": -1, "stdout": "", "stderr": "", "error": str(e)})
-    if timeout > 600:
-        timeout = 600
+    timeout = min(timeout, 600)
 
     ext_map = {
         "python": ".py",

@@ -1,7 +1,11 @@
-import pytest
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
-from browser.observer import BrowserObserver, SimplifiedHTMLParser, TextExtractor, InteractiveExtractor
+
+import pytest
+
+from browser.observer import (
+    BrowserObserver,
+)
+
 
 @pytest.fixture
 def mock_driver():

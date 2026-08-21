@@ -1,12 +1,13 @@
-from typing import List
-from models import Message
-from providers.base import BaseProvider
-from tools import ToolRegistry
-from core.state import AgentState
+
 from core.context import ContextBuilder
 from core.events import EventBus
 from core.loop import AgentLoop
+from core.state import AgentState
+from models import Message
 from prompts.builder import PromptBuilder
+from providers.base import BaseProvider
+from tools import ToolRegistry
+
 
 class Agent:
     def __init__(
@@ -30,14 +31,14 @@ class Agent:
         self.events = EventBus()
         
     @property
-    def messages(self) -> List[Message]:
+    def messages(self) -> list[Message]:
         return self.context.messages
         
     @messages.setter
-    def messages(self, val: List[Message]):
+    def messages(self, val: list[Message]):
         self.context.messages = val
 
-    def run(self, system_prompt: str, user_input: str) -> List[Message]:
+    def run(self, system_prompt: str, user_input: str) -> list[Message]:
         builder = PromptBuilder()
         built_prompt = builder.build(tools=self.tools)
         

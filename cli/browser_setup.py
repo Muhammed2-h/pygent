@@ -1,14 +1,14 @@
 import asyncio
-import socket
-import sys
 import shutil
+import socket
 import subprocess
+import sys
+import tempfile
 from pathlib import Path
 
-from browser.transport import BrowserTransport
 from browser.driver import BrowserDriver
-import uuid
-import tempfile
+from browser.transport import BrowserTransport
+
 
 def find_chrome() -> str:
     candidates = [

@@ -1,6 +1,8 @@
+
 import pytest
-import asyncio
+
 from browser.session import Session
+
 
 @pytest.mark.asyncio
 async def test_session_manager(browser_env):
@@ -12,8 +14,9 @@ async def test_session_manager(browser_env):
     assert "default" in transport.sessions
     
     # We can also instantiate a new BrowserSessionManager if needed, but it's a standalone class.
-    from browser.session import BrowserSessionManager, Session
     from datetime import datetime
+
+    from browser.session import BrowserSessionManager
     
     manager = BrowserSessionManager()
     sess = Session(

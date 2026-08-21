@@ -1,7 +1,9 @@
+
 import pytest
-from pathlib import Path
-from tools.registry import ToolRegistry, tool, _global_tools
+
 from prompts.builder import PromptBuilder
+from tools.registry import ToolRegistry, _global_tools, tool
+
 
 @pytest.fixture(autouse=True)
 def preserve_global_tools():

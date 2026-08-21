@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import List, Any
+
 from models import Message, ToolCall
+
 
 class Event:
     pass
@@ -11,7 +12,7 @@ class TurnStartEvent(Event):
 
 @dataclass
 class LLMRequestEvent(Event):
-    messages: List[Message]
+    messages: list[Message]
 
 @dataclass
 class LLMResponseEvent(Event):

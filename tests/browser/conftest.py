@@ -1,21 +1,22 @@
-import pytest
-import pytest_asyncio
 import asyncio
 import os
+import shutil
 import signal
 import socket
-import sys
-import shutil
+import socketserver
 import subprocess
-from pathlib import Path
+import sys
 import tempfile
 import threading
 from http.server import SimpleHTTPRequestHandler
-import socketserver
+from pathlib import Path
 
-from browser.transport import BrowserTransport
+import pytest
+import pytest_asyncio
+
 from browser.driver import BrowserDriver
-from browser.cdp import CDPClient
+from browser.transport import BrowserTransport
+
 
 def find_chrome() -> str:
     candidates = [

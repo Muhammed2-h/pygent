@@ -1,6 +1,7 @@
 from core.loop_guard import LoopGuard
 from models import ToolCall
 
+
 def test_loop_guard_basic():
     guard = LoopGuard()
     

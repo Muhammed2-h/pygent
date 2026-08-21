@@ -1,8 +1,10 @@
-import pytest
-from memory.storage import MemoryStore
+from datetime import datetime, timedelta, timezone
+
+from core.memory_service import MemoryService
+
 from memory.privacy import PrivacyFilter
-from memory.service import MemoryService
-from datetime import datetime, timezone, timedelta
+from memory.storage import MemoryStore
+
 
 def test_get_relevant_skills(tmp_path):
     db_path = str(tmp_path / "test_relevant_skills.db")

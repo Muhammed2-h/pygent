@@ -1,13 +1,13 @@
+import os
 import platform
+import shutil
+import socket
 import subprocess
 import sys
-import shutil
-import os
-import socket
 from datetime import datetime, timezone
-from typing import Dict
 
 from models import EnvironmentCapability
+
 
 def get_current_time() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -93,7 +93,7 @@ def _is_port_open(port: int) -> bool:
         try:
             s.connect(('127.0.0.1', port))
             return True
-        except (ConnectionRefusedError, socket.timeout, OSError):
+        except (TimeoutError, ConnectionRefusedError, OSError):
             return False
 
 def probe_websocket_port() -> EnvironmentCapability:
@@ -155,5 +155,5 @@ def probe_capability(name: str) -> EnvironmentCapability | None:
         return probe_func()
     return None
 
-def probe_all() -> Dict[str, EnvironmentCapability]:
+def probe_all() -> dict[str, EnvironmentCapability]:
     return {name: func() for name, func in PROBE_MAP.items()}

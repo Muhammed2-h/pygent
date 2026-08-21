@@ -1,9 +1,10 @@
 import asyncio
 import json
 import logging
-import uuid
-from typing import Any, Dict, List, Optional, Set
-from aiohttp import web, WSMsgType
+from typing import Any
+
+from aiohttp import WSMsgType, web
+
 from browser.models import ExtensionRequest, ExtensionResponse
 
 logger = logging.getLogger(__name__)
@@ -16,25 +17,25 @@ class BrowserTransport:
         self.ws_port = ws_port
         self.http_port = http_port
         
-        self.sessions: Set[str] = set()
+        self.sessions: set[str] = set()
         
-        self._pending_commands: Dict[str, List[Dict[str, Any]]] = {}
-        self._command_events: Dict[str, asyncio.Event] = {}
+        self._pending_commands: dict[str, list[dict[str, Any]]] = {}
+        self._command_events: dict[str, asyncio.Event] = {}
         
-        self._result_futures: Dict[str, Dict[str, asyncio.Future]] = {}
-        self._http_sent_ids: Dict[str, Set[str]] = {}
+        self._result_futures: dict[str, dict[str, asyncio.Future]] = {}
+        self._http_sent_ids: dict[str, set[str]] = {}
         
-        self._active_ws: Dict[str, web.WebSocketResponse] = {}
-        self._tasks: Set[asyncio.Task] = set()
+        self._active_ws: dict[str, web.WebSocketResponse] = {}
+        self._tasks: set[asyncio.Task] = set()
         
         self._ws_app = web.Application()
         self._ws_app.router.add_get('/ws', self._ws_handler)
-        self._ws_runner: Optional[web.AppRunner] = None
+        self._ws_runner: web.AppRunner | None = None
         
         self._http_app = web.Application(middlewares=[self._cors_middleware])
         self._http_app.router.add_get('/poll', self._http_poll_handler)
         self._http_app.router.add_post('/result', self._http_result_handler)
-        self._http_runner: Optional[web.AppRunner] = None
+        self._http_runner: web.AppRunner | None = None
 
     @web.middleware
     async def _cors_middleware(self, request: web.Request, handler) -> web.Response:
@@ -108,7 +109,7 @@ class BrowserTransport:
         self._command_events[session_id].set()
         return req_dict["id"]
 
-    async def receive_result(self, session_id: str, msg_id: str, timeout: Optional[float] = None) -> ExtensionResponse:
+    async def receive_result(self, session_id: str, msg_id: str, timeout: float | None = None) -> ExtensionResponse:
         if session_id not in self.sessions:
             raise ValueError(f"Unknown session {session_id}")
         

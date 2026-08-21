@@ -1,10 +1,12 @@
 import inspect
-from typing import Any, Callable, Dict, List, Literal, Optional
+from collections.abc import Callable
+from typing import Any, Literal
+
 from pydantic import create_model
 
 from .types import Tool
 
-_global_tools: Dict[str, Tool] = {}
+_global_tools: dict[str, Tool] = {}
 
 _main_loop = None
 
@@ -13,16 +15,18 @@ def set_main_loop(loop):
     _main_loop = loop
 
 import time
+
 from core.logger import tools_logger
+
 
 class ToolRegistry:
     def __init__(self):
-        self.tools: Dict[str, Tool] = _global_tools.copy()
+        self.tools: dict[str, Tool] = _global_tools.copy()
 
     def register(self, tool: Tool):
         self.tools[tool.name] = tool
 
-    def execute(self, name: str, args: Dict[str, Any]) -> str:
+    def execute(self, name: str, args: dict[str, Any]) -> str:
         start_time = time.time()
         if name not in self.tools:
             duration = time.time() - start_time
@@ -32,7 +36,6 @@ class ToolRegistry:
             res = self.tools[name].executor(**args)
             if inspect.iscoroutine(res):
                 import asyncio
-                import concurrent.futures
                 
 
                 if _main_loop is not None and _main_loop.is_running():
@@ -59,7 +62,7 @@ class ToolRegistry:
             tools_logger.error(f"Tool {name} execution failed", extra={"tool": name, "status": "error", "duration": duration, "error": err_msg})
             return f"Error executing tool {name}: {e}"
 
-    def get_tool_schemas(self) -> List[dict]:
+    def get_tool_schemas(self) -> list[dict]:
         schemas = []
         for name, tool in self.tools.items():
             schema = {
@@ -78,7 +81,7 @@ class ToolRegistry:
             schemas.append(schema)
         return schemas
 
-def generate_schema(func: Callable) -> Optional[Dict[str, Any]]:
+def generate_schema(func: Callable) -> dict[str, Any] | None:
     sig = inspect.signature(func)
     fields = {}
     for param_name, param in sig.parameters.items():
@@ -101,7 +104,7 @@ def tool(
     description: str, 
     risk_level: Literal["safe", "warn", "danger"] = "safe", 
     category: str = "general",
-    schema: Optional[Dict[str, Any]] = None
+    schema: dict[str, Any] | None = None
 ):
     def decorator(func: Callable[..., Any]):
         tool_schema = schema if schema is not None else generate_schema(func)

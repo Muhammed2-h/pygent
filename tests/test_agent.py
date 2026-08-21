@@ -1,23 +1,23 @@
-from typing import List, Optional
-from agent import Agent
+
+from core.agent import Agent
 from models import AgentResponse, Message, ToolCall
 from providers.base import BaseProvider
 from tools import ToolRegistry
 
 
 class DummyProvider(BaseProvider):
-    def __init__(self, responses: Optional[List[AgentResponse]] = None):
+    def __init__(self, responses: list[AgentResponse] | None = None):
         self.responses = responses or [
             AgentResponse(messages=[Message(role="assistant", content="dummy response")])
         ]
         self.call_count = 0
-        self.calls: List[dict] = []
+        self.calls: list[dict] = []
 
     def complete(
         self,
-        messages: List[Message],
+        messages: list[Message],
         model: str,
-        tools: Optional[List[dict]] = None,
+        tools: list[dict] | None = None,
     ) -> AgentResponse:
         self.calls.append({"messages": list(messages), "model": model, "tools": tools})
         resp = self.responses[min(self.call_count, len(self.responses) - 1)]

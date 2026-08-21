@@ -8,12 +8,12 @@ is requested), and produces a structured report.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any
 
 from .metrics import BenchmarkMetrics, MetricsCollector
 from .tasks import (
@@ -21,7 +21,6 @@ from .tasks import (
     BenchmarkTask,
     TaskCategory,
     TaskDifficulty,
-    filter_tasks,
 )
 
 
@@ -31,7 +30,7 @@ class BenchmarkResult:
 
     task: BenchmarkTask
     metrics: BenchmarkMetrics
-    error: Optional[str] = None
+    error: str | None = None
     extra: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -252,13 +251,13 @@ class BenchmarkRunner:
 
     def __init__(
         self,
-        tasks: Optional[Sequence[BenchmarkTask]] = None,
+        tasks: Sequence[BenchmarkTask] | None = None,
         *,
         live: bool = False,
-        dry_run_result: Optional[bool] = None,
-        category: Optional[TaskCategory] = None,
-        difficulty: Optional[TaskDifficulty] = None,
-        tags: Optional[set[str]] = None,
+        dry_run_result: bool | None = None,
+        category: TaskCategory | None = None,
+        difficulty: TaskDifficulty | None = None,
+        tags: set[str] | None = None,
     ) -> None:
         base = list(tasks) if tasks is not None else list(BENCHMARK_TASKS)
         self.tasks = [
