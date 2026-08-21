@@ -185,3 +185,121 @@ def test_create_provider_unsupported():
     config = Config(provider="unsupported_provider", openai_api_key="test-key")
     with pytest.raises(ValueError, match="Unsupported provider: unsupported_provider"):
         create_provider(config)
+
+import openai
+import tools.registry
+
+def test_openai_provider_empty_response():
+    provider = OpenAIProvider("fake_key")
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = ""
+    mock_choice.message.tool_calls = None
+    mock_response.choices = [mock_choice]
+    mock_response.usage.prompt_tokens = 5
+    mock_response.usage.completion_tokens = 0
+    provider.client.chat.completions.create = MagicMock(return_value=mock_response)
+
+    result = provider.complete(messages=[Message(role="user", content="Hi")], model="gpt-4o")
+    assert result.messages[0].content == ""
+    assert result.messages[0].tool_calls is None
+
+def test_openai_provider_malformed_json_tool_call():
+    provider = OpenAIProvider("fake_key")
+    mock_tool_call = MagicMock()
+    mock_tool_call.id = "call_bad"
+    mock_tool_call.function.name = "get_weather"
+    mock_tool_call.function.arguments = "{bad json"
+    
+    mock_choice = MagicMock()
+    mock_choice.message.content = None
+    mock_choice.message.tool_calls = [mock_tool_call]
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+    
+    provider.client.chat.completions.create = MagicMock(return_value=mock_response)
+    
+    result = provider.complete(messages=[Message(role="user", content="Hi")], model="gpt-4o")
+    tc = result.messages[0].tool_calls[0]
+    assert tc.name == "error"
+    assert tc.arguments == {"error": "Invalid JSON arguments"}
+
+def test_openai_provider_retries_on_rate_limit():
+    provider = OpenAIProvider("fake_key")
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = "Success!"
+    mock_choice.message.tool_calls = None
+    mock_response.choices = [mock_choice]
+    
+    mock_create = MagicMock(side_effect=[
+        openai.RateLimitError(message="Rate limited", response=MagicMock(), body=None),
+        mock_response
+    ])
+    provider.client.chat.completions.create = mock_create
+    
+    result = provider.complete(messages=[Message(role="user", content="Hi")], model="gpt-4o")
+    assert result.messages[0].content == "Success!"
+    assert mock_create.call_count == 2
+
+def test_openai_provider_context_overflow_truncation():
+    provider = OpenAIProvider("fake_key")
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = "Truncated Success"
+    mock_choice.message.tool_calls = None
+    mock_response.choices = [mock_choice]
+    
+    def side_effect(*args, **kwargs):
+        if len(kwargs["messages"]) > 1:
+            raise openai.BadRequestError(message="context_length_exceeded", response=MagicMock(), body=None)
+        return mock_response
+        
+    mock_create = MagicMock(side_effect=side_effect)
+    provider.client.chat.completions.create = mock_create
+    
+    messages = [
+        Message(role="user", content="Old message"),
+        Message(role="user", content="New message")
+    ]
+    result = provider.complete(messages=messages, model="gpt-4o")
+    
+    assert result.messages[0].content == "Truncated Success"
+    assert mock_create.call_count == 2
+    # Verify the first message was dropped on the second call
+    assert len(mock_create.call_args[1]["messages"]) == 1
+    assert mock_create.call_args[1]["messages"][0]["content"] == "New message"
+
+from tools.registry import ToolRegistry, tool
+
+def test_openai_provider_tool_schema_generation():
+    @tool(name="test_tool", description="A test tool")
+    def test_tool(param1: str, param2: int = 5):
+        return "test"
+        
+    registry = ToolRegistry()
+    registry.tools['test_tool'] = tools.registry._global_tools['test_tool']
+    schemas = registry.get_tool_schemas()
+    
+    provider = OpenAIProvider("fake_key")
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = "Tool info"
+    mock_choice.message.tool_calls = None
+    mock_response.choices = [mock_choice]
+    
+    provider.client.chat.completions.create = MagicMock(return_value=mock_response)
+    
+    provider.complete(messages=[Message(role="user", content="Hi")], model="gpt-4o", tools=schemas)
+    
+    call_args = provider.client.chat.completions.create.call_args[1]
+    assert "tools" in call_args
+    passed_tools = call_args["tools"]
+    
+    test_tool_schema = next((t for t in passed_tools if t["function"]["name"] == "test_tool"), None)
+    assert test_tool_schema is not None
+    assert test_tool_schema["type"] == "function"
+
+    assert test_tool_schema["function"]["name"] == "test_tool"
+    assert "param1" in test_tool_schema["function"]["parameters"]["properties"]
+

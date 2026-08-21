@@ -1,8 +1,10 @@
 import json
+import time
+import openai
 from typing import List, Optional
 from openai import OpenAI
 from models import AgentResponse, Message, ToolCall
-from .base import BaseProvider
+from providers.base import BaseProvider
 
 
 class OpenAIProvider(BaseProvider):
@@ -27,7 +29,7 @@ class OpenAIProvider(BaseProvider):
                         "type": "function",
                         "function": {
                             "name": tc.name,
-                            "arguments": json.dumps(tc.arguments),
+                            "arguments": json.dumps(tc.arguments) if isinstance(tc.arguments, dict) else tc.arguments,
                         },
                     }
                     for tc in m.tool_calls
@@ -40,7 +42,32 @@ class OpenAIProvider(BaseProvider):
         if tools:
             kwargs["tools"] = tools
 
-        response = self.client.chat.completions.create(**kwargs)
+        max_retries = 3
+        retry_delay = 1
+        
+        for attempt in range(max_retries):
+            try:
+                response = self.client.chat.completions.create(**kwargs)
+                break
+            except (openai.RateLimitError, openai.APIConnectionError) as e:
+                if attempt == max_retries - 1:
+                    raise
+                time.sleep(retry_delay)
+                retry_delay *= 2
+            except openai.BadRequestError as e:
+                if "context_length_exceeded" in str(e) or (hasattr(e, "code") and e.code == "context_length_exceeded"):
+                    removed = False
+                    for i, msg in enumerate(kwargs["messages"]):
+                        if msg["role"] != "system":
+                            kwargs["messages"].pop(i)
+                            removed = True
+                            break
+                    if not removed:
+                        raise e
+                    continue
+                else:
+                    raise
+
         choice = response.choices[0]
 
         parsed_tools = None
@@ -69,7 +96,7 @@ class OpenAIProvider(BaseProvider):
                 "prompt_tokens": response.usage.prompt_tokens,
                 "completion_tokens": response.usage.completion_tokens,
             }
-            if response.usage
+            if hasattr(response, "usage") and response.usage
             else {}
         )
         return AgentResponse(messages=[out_msg], usage=usage)
