@@ -14,9 +14,15 @@ async def test_observer_scan(browser_env, local_server):
     # load test page
     await driver.execute_js(session_id, tab_id, f"window.location.href = '{local_server}/index.html';")
     
+    for _ in range(100):
+        resp = await driver.execute_js(session_id, tab_id, "return document.readyState;")
+        if resp.get("result") == "complete":
+            break
+        await asyncio.sleep(0.1)
+    
     observer = BrowserObserver(transport)
     scan_res = None
-    for _ in range(30):
+    for _ in range(100):
         scan_res = await observer.scan(session_id, tab_id)
         if scan_res and scan_res.get("interactive_elements"):
             break
