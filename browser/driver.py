@@ -5,9 +5,11 @@ Provides the main driver interface for interacting with the browser subsystem.
 """
 
 from typing import Any, Optional
+import time
 from browser.transport import BrowserTransport
 from browser.models import ExtensionRequest
 from browser.cdp import CDPClient
+from core.logger import browser_logger
 import asyncio
 
 class BrowserDriver:
@@ -17,15 +19,16 @@ class BrowserDriver:
         self.session_manager = session_manager
 
     async def enumerate_tabs(self, session_id: str) -> list:
+        start_time = time.time()
         req = ExtensionRequest(cmd="enumerate_tabs", payload={})
         msg_id = await self.transport.send_command(session_id, req)
         resp = await self.transport.receive_result(session_id, msg_id, timeout=60.0)
         self.transport.acknowledge(session_id, msg_id)
-        from core.logger import browser_logger
+        duration = time.time() - start_time
         if not resp.ok:
-            browser_logger.error("Failed to enumerate tabs", extra={"tool": "enumerate_tabs", "status": "error", "duration": 0.0, "error": resp.error})
+            browser_logger.error("Failed to enumerate tabs", extra={"tool": "enumerate_tabs", "status": "error", "duration": duration, "error": resp.error})
             raise RuntimeError(f"Failed to enumerate tabs: {resp.error}")
-        browser_logger.info("Enumerated tabs", extra={"tool": "enumerate_tabs", "status": "success", "duration": 0.0, "error": None})
+        browser_logger.info("Enumerated tabs", extra={"tool": "enumerate_tabs", "status": "success", "duration": duration, "error": None})
         return resp.data
 
     async def execute_js(self, session_id: str, tab_id: int, script: str) -> dict:
@@ -33,6 +36,7 @@ class BrowserDriver:
         Execute JavaScript in the target tab.
         Returns a dict with 'result', 'navigated', and 'new_tabs'.
         """
+        start_time = time.time()
         if not self.transport:
             raise RuntimeError("Transport not configured")
             
@@ -91,13 +95,12 @@ class BrowserDriver:
             navigated = True
             exec_error = None
             
+        duration = time.time() - start_time
         if exec_error:
-            from core.logger import browser_logger
-            browser_logger.error("JavaScript execution failed", extra={"tool": "execute_js", "status": "error", "duration": 0.0, "error": exec_error})
+            browser_logger.error("JavaScript execution failed", extra={"tool": "execute_js", "status": "error", "duration": duration, "error": exec_error})
             raise RuntimeError(exec_error)
             
-        from core.logger import browser_logger
-        browser_logger.info("JavaScript executed", extra={"tool": "execute_js", "status": "success", "duration": 0.0, "error": None})
+        browser_logger.info("JavaScript executed", extra={"tool": "execute_js", "status": "success", "duration": duration, "error": None})
         
         return {
             "result": result_data,

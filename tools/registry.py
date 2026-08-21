@@ -12,6 +12,9 @@ def set_main_loop(loop):
     global _main_loop
     _main_loop = loop
 
+import time
+from core.logger import tools_logger
+
 class ToolRegistry:
     def __init__(self):
         self.tools: Dict[str, Tool] = _global_tools.copy()
@@ -20,7 +23,10 @@ class ToolRegistry:
         self.tools[tool.name] = tool
 
     def execute(self, name: str, args: Dict[str, Any]) -> str:
+        start_time = time.time()
         if name not in self.tools:
+            duration = time.time() - start_time
+            tools_logger.error(f"Tool {name} not found", extra={"tool": name, "status": "error", "duration": duration, "error": "Not found"})
             return f"Error: tool {name} not found"
         try:
             res = self.tools[name].executor(**args)
@@ -43,8 +49,14 @@ class ToolRegistry:
                     res = future.result()
                 else:
                     res = asyncio.run(res)
+            
+            duration = time.time() - start_time
+            tools_logger.info(f"Tool {name} executed", extra={"tool": name, "status": "success", "duration": duration, "error": None})
             return str(res)
         except Exception as e:
+            duration = time.time() - start_time
+            err_msg = str(e)
+            tools_logger.error(f"Tool {name} execution failed", extra={"tool": name, "status": "error", "duration": duration, "error": err_msg})
             return f"Error executing tool {name}: {e}"
 
     def get_tool_schemas(self) -> List[dict]:

@@ -43,6 +43,7 @@ class JSONLFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         log_obj = {
             "timestamp": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "msg": record.getMessage(),
             "task_id": getattr(record, "task_id", None),
             "turn": getattr(record, "turn", None),
             "tool": getattr(record, "tool", None),
@@ -52,7 +53,7 @@ class JSONLFormatter(logging.Formatter):
         }
         
         redacted_obj = redact(log_obj)
-        return json.dumps(redacted_obj)
+        return json.dumps(redacted_obj, default=str)
 
 def get_logger(name: str) -> logging.Logger:
     data_dir_raw = os.getenv("PYGENT_DATA_DIR", "~/.pygent")

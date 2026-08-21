@@ -4,6 +4,8 @@ Chrome DevTools Protocol (CDP) Module.
 Provides a structured interface for interacting with CDP endpoints.
 """
 
+import time
+from core.logger import browser_logger
 import asyncio
 from typing import Any, Optional
 from browser.transport import BrowserTransport
@@ -40,6 +42,8 @@ class CDPClient:
         if not self.transport:
             raise RuntimeError("Transport not configured")
         
+        start = time.time()
+        
         req = ExtensionRequest(
             cmd="debugger_send_command",
             tabId=tab_id,
@@ -51,14 +55,11 @@ class CDPClient:
         msg_id = await self.transport.send_command(session_id, req)
         
         effective_timeout = timeout if timeout is not None else self.default_timeout
-        import time
-        start = time.time()
         resp = await self.transport.receive_result(session_id, msg_id, timeout=effective_timeout)
         duration = time.time() - start
         
         self.transport.acknowledge(session_id, msg_id)
         
-        from core.logger import browser_logger
         if not resp.ok:
             browser_logger.error(f"CDP command {method} failed", extra={"tool": f"cdp.{method}", "status": "error", "duration": duration, "error": resp.error})
             raise RuntimeError(f"CDP command '{method}' failed: {resp.error}")

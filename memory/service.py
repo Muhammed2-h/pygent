@@ -1,3 +1,5 @@
+import time
+from core.logger import memory_logger
 import re
 from datetime import datetime, timezone
 from .storage import MemoryStore
@@ -10,8 +12,8 @@ class MemoryService:
         self.privacy = privacy
 
     def add(self, content: str, mem_type: str = "semantic"):
-        import time
-        from core.logger import memory_logger
+        
+        
         start = time.time()
         try:
             clean_content = self.privacy.scrub(content)
@@ -38,8 +40,8 @@ class MemoryService:
         return " OR ".join(f'"{t}"' for t in safe_tokens)
 
     def get_context_for(self, query: str) -> str:
-        import time
-        from core.logger import memory_logger
+        
+        
         start = time.time()
         fts_query = self._build_fts_query(query)
         if not fts_query:
@@ -65,8 +67,8 @@ class MemoryService:
         return context
 
     def get_relevant_skills(self, task: str) -> list[dict]:
-        import time
-        from core.logger import memory_logger
+        
+        
         start = time.time()
         fts_query = self._build_fts_query(task)
         if not fts_query:

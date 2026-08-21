@@ -1,8 +1,10 @@
+import time
 from typing import List, Optional
 from models import Message, ToolCall
 from core.state import AgentState
 from core.context import ContextBuilder
 from core.events import EventBus, TurnStartEvent, LLMRequestEvent, LLMResponseEvent, ToolExecutionEvent, ToolResultEvent
+from core.logger import agent_logger
 from providers.base import BaseProvider
 from tools import ToolRegistry
 
@@ -41,16 +43,18 @@ class AgentLoop:
                 
             self.events.emit(LLMRequestEvent(messages=messages_to_send))
             
-            import time
-            from core.logger import agent_logger
             llm_start = time.time()
             
-            response = self.provider.complete(
-                messages_to_send, model=current_model, tools=self.tools.get_tool_schemas()
-            )
-            
-            llm_duration = time.time() - llm_start
-            agent_logger.info("Agent LLM complete", extra={"tool": "llm", "turn": self.state.turns, "status": "success", "duration": llm_duration, "error": None})
+            try:
+                response = self.provider.complete(
+                    messages_to_send, model=current_model, tools=self.tools.get_tool_schemas()
+                )
+                llm_duration = time.time() - llm_start
+                agent_logger.info("Agent LLM complete", extra={"tool": "llm", "turn": self.state.turns, "status": "success", "duration": llm_duration, "error": None})
+            except Exception as e:
+                llm_duration = time.time() - llm_start
+                agent_logger.error("Agent LLM failed", extra={"tool": "llm", "turn": self.state.turns, "status": "error", "duration": llm_duration, "error": str(e)})
+                raise
             
             new_msg = response.messages[0]
             
@@ -158,7 +162,16 @@ class AgentLoop:
         if final_cp:
             final_messages_to_send.append(Message(role="system", content=final_cp))
             
-        final_response = self.provider.complete(final_messages_to_send, model=self.model, tools=[])
+        llm_start = time.time()
+        try:
+            final_response = self.provider.complete(final_messages_to_send, model=self.model, tools=[])
+            llm_duration = time.time() - llm_start
+            agent_logger.info("Agent LLM complete", extra={"tool": "llm", "turn": self.state.turns, "status": "success", "duration": llm_duration, "error": None})
+        except Exception as e:
+            llm_duration = time.time() - llm_start
+            agent_logger.error("Agent LLM failed", extra={"tool": "llm", "turn": self.state.turns, "status": "error", "duration": llm_duration, "error": str(e)})
+            raise
+
         final_msg = final_response.messages[0]
         self.state.messages.append(final_msg)
         self.state.new_messages.append(final_msg)
