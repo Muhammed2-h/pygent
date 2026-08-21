@@ -108,8 +108,8 @@ async def run_diagnostics():
     proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
     connected = False
-    for _ in range(50):
-        if session_id in transport._active_ws:
+    for _ in range(150):
+        if transport.is_connected(session_id):
             connected = True
             break
         await asyncio.sleep(0.1)
@@ -122,7 +122,7 @@ async def run_diagnostics():
     tabs = []
     if connected:
         try:
-            tabs = await driver._enumerate_tabs(session_id)
+            tabs = await driver.enumerate_tabs(session_id)
             if tabs:
                 print(f"✅ Tabs are visible: Found {len(tabs)} tabs")
             else:
@@ -134,7 +134,7 @@ async def run_diagnostics():
         try:
             tab_id = tabs[0]["id"]
             res = await driver.execute_js(session_id, tab_id, "return 1 + 1;")
-            if res.get("result") == 2:
+            if isinstance(res, dict) and res.get("result") == 2:
                 print("✅ JavaScript execution works")
             else:
                 print(f"❌ JavaScript execution works: {res}")

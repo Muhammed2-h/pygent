@@ -16,7 +16,7 @@ class BrowserDriver:
         self.transport = transport
         self.session_manager = session_manager
 
-    async def _enumerate_tabs(self, session_id: str) -> list:
+    async def enumerate_tabs(self, session_id: str) -> list:
         req = ExtensionRequest(cmd="enumerate_tabs", payload={})
         msg_id = await self.transport.send_command(session_id, req)
         resp = await self.transport.receive_result(session_id, msg_id, timeout=60.0)
@@ -34,7 +34,7 @@ class BrowserDriver:
             raise RuntimeError("Transport not configured")
             
         try:
-            tabs_before = await self._enumerate_tabs(session_id)
+            tabs_before = await self.enumerate_tabs(session_id)
         except Exception:
             tabs_before = []
             
@@ -65,7 +65,7 @@ class BrowserDriver:
             exec_error = str(e)
             
         try:
-            tabs_after = await self._enumerate_tabs(session_id)
+            tabs_after = await self.enumerate_tabs(session_id)
         except Exception:
             tabs_after = []
             

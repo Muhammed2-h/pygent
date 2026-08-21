@@ -12,18 +12,23 @@ def test_check_port():
     assert isinstance(res, bool)
 
 @pytest.mark.asyncio
+@patch('cli.browser_setup.Path.exists')
+@patch('cli.browser_setup.find_chrome')
 @patch('cli.browser_setup.check_port')
 @patch('cli.browser_setup.subprocess.Popen')
 @patch('cli.browser_setup.BrowserTransport')
 @patch('cli.browser_setup.BrowserDriver')
-async def test_run_diagnostics(mock_driver, mock_transport, mock_popen, mock_check_port, capsys):
+async def test_run_diagnostics(mock_driver, mock_transport, mock_popen, mock_check_port, mock_find_chrome, mock_path_exists, capsys):
+    mock_find_chrome.return_value = "/usr/bin/chromium"
+    mock_path_exists.return_value = True
     mock_check_port.return_value = True
+    
     mock_transport_instance = MagicMock()
     mock_transport_instance.start_ws_server = AsyncMock()
     mock_transport_instance.start_http_server = AsyncMock()
     mock_transport_instance.stop = AsyncMock()
+    mock_transport_instance.is_connected.return_value = True
     mock_transport.return_value = mock_transport_instance
-    mock_transport_instance._active_ws = {"default": MagicMock()}
     
     mock_driver_instance = MagicMock()
     mock_driver.return_value = mock_driver_instance
@@ -34,7 +39,7 @@ async def test_run_diagnostics(mock_driver, mock_transport, mock_popen, mock_che
     async def mock_execute_js(session_id, tab_id, script):
         return {"result": 2}
         
-    mock_driver_instance._enumerate_tabs = mock_enumerate_tabs
+    mock_driver_instance.enumerate_tabs = mock_enumerate_tabs
     mock_driver_instance.execute_js = mock_execute_js
     
     await run_diagnostics()

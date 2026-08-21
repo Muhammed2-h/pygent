@@ -78,6 +78,10 @@ class BrowserTransport:
         if session_id not in self._http_sent_ids:
             self._http_sent_ids[session_id] = set()
 
+    def is_connected(self, session_id: str) -> bool:
+        """Check if the session is currently connected via WebSocket."""
+        return session_id in self._active_ws
+
     def unregister_session(self, session_id: str):
         self.sessions.discard(session_id)
         if session_id in self._pending_commands:
