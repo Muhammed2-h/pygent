@@ -134,7 +134,7 @@ async def browser_env():
     proc = subprocess.Popen(cmd, stdout=log_out, stderr=log_err, start_new_session=True)
     
     connected = False
-    for _ in range(300):
+    for _ in range(600):
         if transport.is_connected(session_id):
             connected = True
             break
