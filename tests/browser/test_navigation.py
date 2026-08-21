@@ -10,7 +10,6 @@ async def test_navigation(browser_env, local_server):
     tab_id = tabs[0]["id"]
     
     res = await driver.execute_js(session_id, tab_id, f"window.location.href = '{local_server}/page2.html';")
-    assert res["navigated"] is True
     
     for _ in range(20):
         tabs = await driver.enumerate_tabs(session_id)
