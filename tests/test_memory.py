@@ -125,7 +125,7 @@ def test_privacy_filter_structured_formats():
     assert ", other_header=xyz" in scrubbed_headers
 
 def test_memory_service(tmp_path):
-    from memory.service import MemoryService
+    from core.memory_service import MemoryService
 
     from memory.privacy import PrivacyFilter
 
@@ -146,7 +146,7 @@ def test_memory_service(tmp_path):
 def test_memory_service_standalone_and_edge_cases():
     import os
 
-    from memory.service import MemoryService
+    from core.memory_service import MemoryService
 
     from memory.privacy import PrivacyFilter
 

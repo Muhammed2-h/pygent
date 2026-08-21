@@ -10,7 +10,7 @@ from browser.observer import (
 @pytest.fixture
 def mock_driver():
     driver = MagicMock()
-    driver._enumerate_tabs = AsyncMock(return_value=[{"id": 1, "url": "http://example.com"}])
+    driver.enumerate_tabs = AsyncMock(return_value=[{"id": 1, "url": "http://example.com"}])
     driver.execute_js = AsyncMock(return_value={"result": "<body><h1>Test</h1><a href='http://link.com'>Link</a><p style='display:none'>Hidden</p></body>"})
     return driver
 
