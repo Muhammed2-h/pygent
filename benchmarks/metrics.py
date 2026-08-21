@@ -27,6 +27,7 @@ class BenchmarkMetrics:
     recovery_count: int = 0
     skill_created: bool = False
     skill_reused: bool = False
+    successful_path: list[str] = field(default_factory=list)
 
     # ------------------------------------------------------------------
     # Derived / computed helpers
@@ -42,6 +43,7 @@ class BenchmarkMetrics:
             "recovery_count": self.recovery_count,
             "skill_created": self.skill_created,
             "skill_reused": self.skill_reused,
+            "successful_path": list(self.successful_path),
         }
 
 
@@ -65,6 +67,7 @@ class MetricsCollector:
         self._success: bool = False
         self._skill_created: bool = False
         self._skill_reused: bool = False
+        self._successful_path: list[str] = []
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -104,6 +107,10 @@ class MetricsCollector:
         """Record that a skill was reused during the task."""
         self._skill_reused = True
 
+    def record_successful_path(self, path: list[str]) -> None:
+        """Record the successful sequence of actions/tools used."""
+        self._successful_path.extend(path)
+
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
@@ -137,4 +144,5 @@ class MetricsCollector:
             recovery_count=self._recovery_count,
             skill_created=self._skill_created,
             skill_reused=self._skill_reused,
+            successful_path=list(self._successful_path),
         )

@@ -263,6 +263,8 @@ class TestBenchmarkRunnerLive:
         recoveries: int = 0,
         skill_created: bool = False,
         skill_reused: bool = False,
+        successful_path: list[str] = None,
+        task_id: str = "mock_task",
     ) -> BenchmarkTask:
         async def executor(**kwargs):
             return {
@@ -272,10 +274,11 @@ class TestBenchmarkRunnerLive:
                 "recovery_count": recoveries,
                 "skill_created": skill_created,
                 "skill_reused": skill_reused,
+                "successful_path": successful_path or [],
             }
 
         return BenchmarkTask(
-            task_id="mock_task",
+            task_id=task_id,
             name="Mock Task",
             description="A mock task for testing.",
             category=TaskCategory.NAVIGATION,
@@ -339,7 +342,8 @@ class TestBenchmarkRunnerLive:
     @pytest.mark.asyncio
     async def test_live_with_skills(self):
         task = self._make_task_with_executor(
-            success=True, turns=4, tools=8, skill_created=True, skill_reused=True
+            success=True, turns=4, tools=8, skill_created=True, skill_reused=True,
+            successful_path=["click_button", "fill_form"]
         )
         runner = BenchmarkRunner(tasks=[task], live=True)
         report = await runner.run()
@@ -347,6 +351,46 @@ class TestBenchmarkRunnerLive:
         r = report.results[0]
         assert r.metrics.skill_created is True
         assert r.metrics.skill_reused is True
+        assert r.metrics.successful_path == ["click_button", "fill_form"]
+
+    @pytest.mark.asyncio
+    async def test_validate_evolution(self):
+        task_a = self._make_task_with_executor(
+            task_id="self_evolution_a",
+            success=True, turns=4, recoveries=2,
+            skill_created=True, successful_path=["step1", "step2"]
+        )
+        task_b = self._make_task_with_executor(
+            task_id="self_evolution_b",
+            success=True, turns=2, recoveries=0,
+            skill_reused=True
+        )
+        runner = BenchmarkRunner(tasks=[task_a, task_b], live=True)
+        report = await runner.run()
+        
+        errors = report.validate_evolution()
+        assert not errors, f"Expected no evolution errors, got: {errors}"
+        
+    @pytest.mark.asyncio
+    async def test_validate_evolution_fails(self):
+        task_a = self._make_task_with_executor(
+            task_id="self_evolution_a",
+            success=True, turns=2, recoveries=1,
+            skill_created=True, successful_path=["step1"]
+        )
+        task_b = self._make_task_with_executor(
+            task_id="self_evolution_b",
+            success=True, turns=4, recoveries=2,  # worse performance
+            skill_reused=False  # failed to reuse
+        )
+        runner = BenchmarkRunner(tasks=[task_a, task_b], live=True)
+        report = await runner.run()
+        
+        errors = report.validate_evolution()
+        assert len(errors) == 3
+        assert "Task B did not use fewer turns" in errors[0]
+        assert "Task B did not have fewer failures/recoveries" in errors[1]
+        assert "Task B did not record a reused skill" in errors[2]
 
 
 # ======================================================================

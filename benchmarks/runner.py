@@ -167,6 +167,40 @@ class BenchmarkReport:
             groups.setdefault(r.task.category.value, []).append(r)
         return groups
 
+    def validate_evolution(self) -> list[str]:
+        """Check if Task B showed evolution compared to Task A.
+        Returns a list of error messages (empty if successful).
+        """
+        task_a = next((r for r in self.results if r.task.task_id == "self_evolution_a"), None)
+        task_b = next((r for r in self.results if r.task.task_id == "self_evolution_b"), None)
+        
+        errors = []
+        if not task_a or not task_b:
+            return errors
+            
+        if not task_a.passed:
+            errors.append("Task A must pass to measure evolution.")
+            
+        if not task_b.passed:
+            errors.append("Task B must pass to show evolution.")
+            
+        if task_b.metrics.turn_count >= task_a.metrics.turn_count and task_a.metrics.turn_count > 1:
+            errors.append(f"Task B did not use fewer turns (A: {task_a.metrics.turn_count}, B: {task_b.metrics.turn_count}).")
+            
+        if task_b.metrics.recovery_count >= task_a.metrics.recovery_count and task_a.metrics.recovery_count > 0:
+            errors.append(f"Task B did not have fewer failures/recoveries (A: {task_a.metrics.recovery_count}, B: {task_b.metrics.recovery_count}).")
+            
+        if not task_a.metrics.skill_created:
+            errors.append("Task A did not record a created skill.")
+            
+        if not task_b.metrics.skill_reused:
+            errors.append("Task B did not record a reused skill.")
+            
+        if not task_a.metrics.successful_path:
+            errors.append("Task A did not record a successful path.")
+            
+        return errors
+
 
 class BenchmarkRunner:
     """Execute benchmark tasks and collect results.
@@ -248,6 +282,7 @@ class BenchmarkRunner:
             recovery_count = result_dict.get("recovery_count", 0)
             skill_created = result_dict.get("skill_created", False)
             skill_reused = result_dict.get("skill_reused", False)
+            successful_path = result_dict.get("successful_path", [])
 
             for _ in range(turn_count):
                 collector.record_turn()
@@ -259,6 +294,8 @@ class BenchmarkRunner:
                 collector.record_skill_created()
             if skill_reused:
                 collector.record_skill_reused()
+            if successful_path:
+                collector.record_successful_path(successful_path)
 
             collector.stop(success=success)
             return BenchmarkResult(
