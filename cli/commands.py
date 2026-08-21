@@ -70,7 +70,8 @@ def execute(args_list=None):
             from .browser_setup import handle_browser_setup
             handle_browser_setup()
         else:
-            print("Browser command executed.")
+            from .browser_repl import handle_browser
+            handle_browser(db_path, skills_dir)
     elif args.command == "skills":
         print("Skills command executed.")
     elif args.command == "environment":

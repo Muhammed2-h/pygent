@@ -17,7 +17,18 @@ class ToolRegistry:
         if name not in self.tools:
             return f"Error: tool {name} not found"
         try:
-            return str(self.tools[name].executor(**args))
+            res = self.tools[name].executor(**args)
+            if inspect.iscoroutine(res):
+                import asyncio
+                try:
+                    loop = asyncio.get_running_loop()
+                    # if we are in an event loop, we can't use asyncio.run
+                    # wait, if we are in a running loop, this is tricky. 
+                    # But core/loop.py is fully synchronous, so there should be no running loop here.
+                    res = asyncio.run(res)
+                except RuntimeError:
+                    res = asyncio.run(res)
+            return str(res)
         except Exception as e:
             return f"Error executing tool {name}: {e}"
 

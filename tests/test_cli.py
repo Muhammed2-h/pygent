@@ -110,10 +110,12 @@ def test_cli_interactive_loop_eof(monkeypatch, tmp_path, capsys):
 
 def test_cli_browser(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(sys, "argv", ["main.py", "browser"])
-    from main import main
-    main()
-    captured = capsys.readouterr().out
-    assert "Browser command executed." in captured
+    monkeypatch.setattr("os.path.expanduser", lambda p: str(tmp_path) if "~" in p else p)
+    from unittest.mock import patch
+    with patch("cli.browser_repl.handle_browser") as mock_handle:
+        from main import main
+        main()
+        assert mock_handle.called
 
 def test_cli_browser_setup(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(sys, "argv", ["main.py", "browser", "setup"])
