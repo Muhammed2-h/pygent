@@ -271,6 +271,14 @@ async function handleRequest(msg) {
               }
           };
 
+          let scriptDone = false;
+          const fallbackTimer = setTimeout(() => {
+              if (!scriptDone) {
+                  scriptDone = true;
+                  cleanupAndResolve({ __pygent_error: true, message: "Execution context was destroyed (timeout)" });
+              }
+          }, 5000);
+
           chrome.scripting.executeScript({
               target: { tabId },
               world: "MAIN",
@@ -283,6 +291,10 @@ async function handleRequest(msg) {
               },
               args: [wrapperCode]
           }, (injectionResults) => {
+              if (scriptDone) return;
+              scriptDone = true;
+              clearTimeout(fallbackTimer);
+              
               if (chrome.runtime.lastError) {
                   const errMsg = chrome.runtime.lastError.message || "";
                   if (errMsg.includes("Execution context was destroyed") || errMsg.includes("Cannot find context") || errMsg.includes("unknown context")) {
