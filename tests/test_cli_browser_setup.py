@@ -1,0 +1,47 @@
+import pytest
+from unittest.mock import patch, MagicMock, AsyncMock
+from cli.browser_setup import find_chrome, check_port, run_diagnostics
+import sys
+
+def test_find_chrome():
+    res = find_chrome()
+    assert isinstance(res, str)
+
+def test_check_port():
+    res = check_port(18765)
+    assert isinstance(res, bool)
+
+@pytest.mark.asyncio
+@patch('cli.browser_setup.check_port')
+@patch('cli.browser_setup.subprocess.Popen')
+@patch('cli.browser_setup.BrowserTransport')
+@patch('cli.browser_setup.BrowserDriver')
+async def test_run_diagnostics(mock_driver, mock_transport, mock_popen, mock_check_port, capsys):
+    mock_check_port.return_value = True
+    mock_transport_instance = MagicMock()
+    mock_transport_instance.start_ws_server = AsyncMock()
+    mock_transport_instance.start_http_server = AsyncMock()
+    mock_transport_instance.stop = AsyncMock()
+    mock_transport.return_value = mock_transport_instance
+    mock_transport_instance._active_ws = {"default": MagicMock()}
+    
+    mock_driver_instance = MagicMock()
+    mock_driver.return_value = mock_driver_instance
+    
+    async def mock_enumerate_tabs(session_id):
+        return [{"id": 1, "url": "http://example.com"}]
+        
+    async def mock_execute_js(session_id, tab_id, script):
+        return {"result": 2}
+        
+    mock_driver_instance._enumerate_tabs = mock_enumerate_tabs
+    mock_driver_instance.execute_js = mock_execute_js
+    
+    await run_diagnostics()
+    
+    captured = capsys.readouterr()
+    assert "Browser Setup Diagnostics" in captured.out
+    assert "Extension connects: WebSocket connected" in captured.out
+    assert "Tabs are visible: Found 1 tabs" in captured.out
+    assert "JavaScript execution works" in captured.out
+

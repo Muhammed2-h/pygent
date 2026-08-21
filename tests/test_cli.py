@@ -120,7 +120,7 @@ def test_cli_browser_setup(monkeypatch, tmp_path, capsys):
     from main import main
     main()
     captured = capsys.readouterr().out
-    assert "Browser setup executed." in captured
+    assert "Browser Setup Diagnostics" in captured
 
 def test_cli_skills(monkeypatch, tmp_path, capsys):
     monkeypatch.setattr(sys, "argv", ["main.py", "skills"])

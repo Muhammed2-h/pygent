@@ -67,7 +67,8 @@ def execute(args_list=None):
         start_repl(db_path, skills_dir)
     elif args.command == "browser":
         if getattr(args, "browser_command", None) == "setup":
-            print("Browser setup executed.")
+            from .browser_setup import handle_browser_setup
+            handle_browser_setup()
         else:
             print("Browser command executed.")
     elif args.command == "skills":
