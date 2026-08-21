@@ -208,58 +208,49 @@ async function handleRequest(msg) {
           };
 
           const runCDP = () => {
-              chrome.debugger.getTargets((targets) => {
-                  if (chrome.runtime.lastError) {
-                      return cleanupAndResolve({ __pygent_error: true, message: chrome.runtime.lastError.message });
-                  }
-                  
-                  const target = targets.find(t => t.tabId === tabId && t.attached);
-                  const needsDetach = !target;
-                  
-                  const run = () => {
-                      chrome.debugger.sendCommand({ tabId }, "Runtime.evaluate", {
-                          expression: wrapperCode,
-                          awaitPromise: true,
-                          returnByValue: true,
-                          userGesture: true
-                      }, (res) => {
-                          const err = chrome.runtime.lastError ? chrome.runtime.lastError.message : null;
-                          
-                          const complete = () => {
-                              if (err) {
-                                  cleanupAndResolve({ __pygent_error: true, message: err });
-                              } else if (res && res.exceptionDetails) {
-                                  cleanupAndResolve({
-                                      __pygent_error: true,
-                                      message: res.exceptionDetails.exception?.description || res.exceptionDetails.text,
-                                      stack: null
-                                  });
-                              } else if (res && res.result) {
-                                  cleanupAndResolve(res.result.value);
-                              } else {
-                                  cleanupAndResolve(null);
-                              }
-                          };
-                          
-                          if (needsDetach) {
-                              chrome.debugger.detach({ tabId }, complete);
-                          } else {
-                              complete();
-                          }
-                      });
-                  };
-                  
-                  if (needsDetach) {
-                      chrome.debugger.attach({ tabId }, "1.3", () => {
+              try {
+                  chrome.debugger.getTargets((targets) => {
+                      try {
                           if (chrome.runtime.lastError) {
                               return cleanupAndResolve({ __pygent_error: true, message: chrome.runtime.lastError.message });
                           }
-                          run();
-                      });
-                  } else {
-                      run();
-                  }
-              });
+                          const target = targets.find(t => t.tabId === tabId && t.attached);
+                          const doCommand = () => {
+                              chrome.debugger.sendCommand({ tabId: tabId }, "Runtime.evaluate", {
+                                  expression: args.script,
+                                  returnByValue: true
+                              }, (result) => {
+                                  try {
+                                      if (chrome.runtime.lastError) {
+                                          cleanupAndResolve({ __pygent_error: true, message: chrome.runtime.lastError.message });
+                                      } else if (result && result.exceptionDetails) {
+                                          const msg = (result.exceptionDetails.exception && result.exceptionDetails.exception.description) || result.exceptionDetails.text || "Unknown error";
+                                          cleanupAndResolve({ __pygent_error: true, message: msg });
+                                      } else {
+                                          cleanupAndResolve(result ? result.result.value : null);
+                                      }
+                                  } catch(e) {
+                                      cleanupAndResolve({ __pygent_error: true, message: e.toString() });
+                                  }
+                              });
+                          };
+                          if (!target) {
+                              chrome.debugger.attach({ tabId: tabId }, "1.3", () => {
+                                  if (chrome.runtime.lastError) {
+                                      return cleanupAndResolve({ __pygent_error: true, message: chrome.runtime.lastError.message });
+                                  }
+                                  doCommand();
+                              });
+                          } else {
+                              doCommand();
+                          }
+                      } catch(e) {
+                          cleanupAndResolve({ __pygent_error: true, message: e.toString() });
+                      }
+                  });
+              } catch(e) {
+                  cleanupAndResolve({ __pygent_error: true, message: e.toString() });
+              }
           };
 
           chrome.scripting.executeScript({
