@@ -1,219 +1,154 @@
 # Pygent
 
-A production-quality, browser-control Python AI agent with persistent memory — built with boring, readable, maintainable Python.
+A production-quality, browser-focused Python AI agent that builds its own skills, evolves its environment, and retains long-term memory. 
 
-No LangChain. No CrewAI. No AutoGen. Just clean code.
+## What Pygent Is
 
-## Features
+Pygent is a lightweight, dependency-minimal agent architecture designed around **browser control as the primary execution environment**. Unlike traditional agents that run terminal commands as their main feedback loop, Pygent interacts with existing, authenticated user browser sessions. It learns from its successes and failures, storing verifiable procedures as reusable "Skills" and indexing state as "Environment Facts."
 
-- **Browser Control** — Autonomous web interaction driven by OpenAI
-- **Persistent Memory** — SQLite FTS5 full-text search for long-term observation storage across sessions
-- **Privacy Scrubbing** — Automatically redacts API keys and secrets before storing to memory
-- **Tool Use** — Safe built-in tools (calculator, time, environment info) with an extensible registry
-- **Conversational Context** — Maintains conversation history within a session and augments prompts with relevant memory
-- **Minimal Dependencies** — Built primarily on `openai`, `pydantic`, and `python-dotenv`
+## Why Browser Control Matters
+
+Most valuable tasks require authentication, CAPTCHA bypasses, and complex session state. Headless browsers orchestrated by Puppeteer or Playwright struggle here. 
+Pygent solves this by connecting to your **existing, native Chrome browser session**. 
+The browser produces the valuable experience, and Pygent leverages it without disrupting your login states or security constraints.
 
 ## Architecture
 
-```
-main.py              → CLI entry point, REPL loop, diagnostics
-├── config.py        → Pydantic config from .env
-├── models.py        → Normalized Message, ToolCall, AgentResponse
-├── agent.py         → Core agent loop (prompt → tool calls → results → repeat)
-├── tools.py         → ToolRegistry + safe built-in tools
-├── providers/
-│   ├── base.py      → Abstract BaseProvider interface
-│   └── openai_provider.py → OpenAI Chat Completions adapter
-└── memory/
-    ├── storage.py   → SQLite FTS5 MemoryStore
-    ├── privacy.py   → PrivacyFilter (regex-based secret scrubbing)
-    └── service.py   → MemoryService (orchestrates storage + privacy)
-```
-
-## Requirements
-
-- **Python 3.11+**
-- An OpenAI API key
-
-## Installation
-
-### 1. Clone the Repository
-
-```bash
-git clone https://github.com/Muhammed2-h/pygent.git
-cd pygent
-```
-
-### 2. Create a Virtual Environment
-
-```bash
-python3 -m venv venv
-source venv/bin/activate   # Linux/macOS
-# venv\Scripts\activate    # Windows
+```mermaid
+graph TD
+    LLM[LLM] --> CB[Context Builder]
+    
+    CB --> SM[Skills Memory]
+    CB --> EF[Environment Facts]
+    CB --> WM[Working Memory]
+    
+    SM --> AL[Agent Loop]
+    EF --> AL
+    WM --> AL
+    
+    AL --> TR[Tool Registry]
+    
+    TR --> FS[Filesystem]
+    TR --> ENV[Environment]
+    TR --> BR[Browser]
+    
+    BR --> JS[JS Control]
+    JS --> CDP[CDP Fallback]
+    CDP --> Chrome[Native Chrome Browser]
+    
+    FS --> VER[Verification]
+    ENV --> VER
+    BR --> VER
+    
+    VER --> MEM[Memory]
+    MEM --> SU[Skill Update]
 ```
 
-### 3. Install Dependencies
+## How the Browser Bridge Works
 
-```bash
-pip install -r requirements.txt
+Pygent relies on a layered approach for browser control:
+1. **Chrome Extension**: The primary communication channel. It injects a local bridge to interact with Pygent.
+2. **JavaScript Execution**: Actions are performed by dispatching synthesized JS events within the page context.
+3. **CDP Fallback**: For actions that JS cannot perform (like complex native file uploads), Pygent falls back to the Chrome DevTools Protocol (CDP).
+
+### Browser Execution Lifecycle
+
+```mermaid
+graph TD
+    SESS[browser_sessions] --> SEL[select tab]
+    SEL --> SCAN[browser_scan]
+    SCAN --> TGT[identify target]
+    TGT --> EXEC[browser_execute_js]
+    EXEC --> CHG{state changed?}
+    CHG -->|yes| VER[verify]
+    CHG -->|no| RET[retry]
+    RET --> CDP[CDP fallback]
+    CDP --> CVER[verify]
+    CVER --> ASK[ask_user on fail]
 ```
 
-### 4. Configure Environment Variables
+## How to Install the Extension
 
-Copy the example environment file and add your API key(s):
+1. Navigate to `chrome://extensions/` in your Chrome browser.
+2. Enable **Developer mode** in the top right.
+3. Click **Load unpacked**.
+4. Select the `extension/` directory located in the root of the Pygent repository.
+5. Note the Extension ID. You may need to provide this in your configuration depending on your setup.
+
+## How Memory Works
+
+Pygent uses a tiered SQLite FTS5 architecture:
+- **L0 System rules**: Base agent instructions.
+- **L1 Memory index**: FTS tables for quick retrieval.
+- **L2 Environment facts**: Discovered truths about the host system.
+- **L3 Skills / SOPs**: Markdown-formatted Standard Operating Procedures.
+- **L4 Archived sessions**: Past interactions.
+
+Memory is highly contextual: Pygent only injects context into the LLM prompt based on relevance, recency, and confidence, keeping the prompt minimal. 
+
+## How Skills Evolve
+
+When Pygent faces a new task, it explores to find a solution. Once verified, it creates a candidate **Skill** and stores it. 
+Next time, it retrieves that skill and re-executes the known working steps. 
+Skills carry a `confidence` score, `success_count`, and `failure_count`. If a web page updates and a skill fails, its confidence decreases. The agent will fallback to exploration, find a new path, and update the skill.
+
+## How Environment Growth Works
+
+Pygent isn't limited to what it has at startup. 
+If an action requires a missing dependency (e.g., a CLI tool), Pygent probes the environment. If it's missing, it attempts to install or repair it, verifies the installation, and stores this as an Environment Fact. 
+
+*Note: Critical system changes require user permission.*
+
+## How to Run Browser Mode
+
+1. Ensure your Chrome browser is running with remote debugging enabled (required for CDP fallback):
+   ```bash
+   google-chrome --remote-debugging-port=9222
+   ```
+2. Start the agent:
+   ```bash
+   python main.py
+   ```
+3. Ask it to perform a browser task:
+   ```
+   > Go to example.com and extract the main heading.
+   ```
+
+## How to Configure Providers
+
+Pygent abstract the LLM provider through a simple interface.
+To configure the default OpenAI provider:
 
 ```bash
 cp .env.example .env
 ```
-
-Edit `.env` with your keys:
-
+Edit `.env`:
 ```env
 OPENAI_API_KEY=sk-your-key-here
 DEFAULT_MODEL=gpt-4o
 MAX_AGENT_STEPS=8
 ```
 
-> **Important:** Never commit your `.env` file. It is already in `.gitignore`.
+To add a new provider, implement `BaseProvider` in `providers/base.py` and register it in `config.py` or your dependency injection setup.
 
-### 5. Verify Installation
+## Security Limitations
 
-Run the built-in diagnostics to confirm everything is configured:
+- **Tool Policy**: High-risk actions (e.g., sudo, credential changes, package installation) are intercepted by a risk classifier.
+- **Ask User**: Any high-risk action triggers an `ask_user` tool execution. The user MUST explicitly approve the action before Pygent can proceed.
+- **Privacy Filter**: API keys and secrets are scrubbed via regex before being committed to long-term memory.
+- **No Unrestricted Automation**: Environment growth is sandboxed where possible; avoid running Pygent as root.
 
-```bash
-python main.py --check
-```
+## Troubleshooting
 
-Expected output:
-
-```
-Checking Configuration...
-OpenAI Key: Present
-Checking Database...
-Database OK at ~/.agent_memory.db
-```
-
-## Usage
-
-### Interactive Chat
-
-Start the agent in interactive mode:
-
-```bash
-python main.py
-```
-
-```
-Pygent started. Type /quit to exit.
-> What time is it?
-AI: The current time is 2026-08-19T22:00:00.
-> Calculate 42 * 17
-AI: 42 * 17 = 714.
-> /quit
-```
-
-### Memory Demo
-
-Test the persistent memory system:
-
-```bash
-python main.py --memory-demo
-```
-
-This stores a test observation and retrieves it via full-text search.
-
-### Diagnostics
-
-Check your configuration and database:
-
-```bash
-python main.py --check
-```
-
-## Built-in Tools
-
-| Tool | Description | Example |
-|------|-------------|---------|
-| `get_time` | Returns current ISO timestamp | "What time is it?" |
-| `calculate` | Safe arithmetic evaluation (no `eval`) | "What is 123 * 456?" |
-| `env_info` | Reads an environment variable | "What is the HOME variable?" |
-
-### Adding Custom Tools
-
-Register new tools in [`tools.py`](tools.py):
-
-```python
-# 1. Define the function
-def tool_weather(city: str) -> str:
-    # Your implementation here
-    return f"Weather in {city}: Sunny, 25°C"
-
-# 2. Register in ToolRegistry.__init__
-self.tools["weather"] = tool_weather
-
-# 3. Add schema in get_tool_schemas()
-{
-    "type": "function",
-    "function": {
-        "name": "weather",
-        "description": "Get weather for a city",
-        "parameters": {
-            "type": "object",
-            "properties": {"city": {"type": "string"}},
-            "required": ["city"],
-        },
-    },
-}
-```
-
-## Memory System
-
-Pygent uses **SQLite FTS5** for persistent, provider-independent memory:
-
-- **Observations** are stored automatically after each user turn
-- **Privacy filter** scrubs API keys (OpenAI `sk-*`) before storage
-- **Full-text search** retrieves relevant context and injects it into the system prompt
-- **Supersede support** allows marking old memories as outdated
-- Database stored at `~/.agent_memory.db` (outside the repo)
-
-## Adding a New Provider
-
-Implement the [`BaseProvider`](providers/base.py) interface:
-
-```python
-from providers.base import BaseProvider
-from models import AgentResponse, Message
-
-class MyProvider(BaseProvider):
-    def complete(self, messages, model, tools=None) -> AgentResponse:
-        # Translate messages to your API format
-        # Call your API
-        # Translate response back to AgentResponse
-        ...
-```
-
-## Running Tests
-
-```bash
-pytest -v
-```
-
-All 34 tests cover:
-- Configuration loading and edge cases
-- Normalized model creation
-- Provider message translation and tool call parsing
-- Tool registry execution and safety
-- Agent loop (simple, tool calls, multi-tool, max steps)
-- CLI modes (check, memory-demo, interactive, missing keys, EOF)
-- Memory storage, FTS search, privacy scrubbing, service orchestration
-
-## Configuration Reference
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OPENAI_API_KEY` | — | Your OpenAI API key |
-| `DEFAULT_MODEL` | `gpt-4o` | Which model to use |
-| `MAX_AGENT_STEPS` | `8` | Max tool-use loop iterations per turn |
+- **Agent cannot connect to browser**: 
+  - Ensure the Chrome Extension is installed and active.
+  - Verify Chrome was started with `--remote-debugging-port=9222`.
+- **Memory not persisting**:
+  - Check file permissions for `~/.agent_memory.db`.
+- **Browser actions failing**:
+  - The page might be intercepting synthetic JS events. Pygent will attempt to fallback to CDP. Ensure the debugging port is reachable.
+- **Context limit reached**:
+  - Pygent compresses context automatically. If it's failing, try simplifying the task to allow Pygent to generate a specialized Skill first.
 
 ## License
 
