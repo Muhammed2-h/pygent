@@ -3,6 +3,7 @@ from core.agent import Agent
 from models import AgentResponse, Message, ToolCall
 from providers.base import BaseProvider
 from tools import ToolRegistry
+from tools.types import Tool
 
 
 class DummyProvider(BaseProvider):
@@ -49,6 +50,7 @@ def test_agent_run_with_single_tool_call():
         ]
     )
     tools = ToolRegistry()
+    tools.register(Tool(name="calculate", description="", schema=None, executor=lambda expression: "50", risk_level="safe", category="general"))
     agent = Agent(provider, tools, model="test-model", max_steps=5)
 
     result = agent.run("You are a calculator.", "What is 10 * 5?")
@@ -80,6 +82,11 @@ def test_agent_run_with_multiple_tool_calls_in_one_step():
         ]
     )
     tools = ToolRegistry()
+    def mock_calc(expression):
+        if expression == "2 + 2": return "4"
+        if expression == "3 * 3": return "9"
+        return "0"
+    tools.register(Tool(name="calculate", description="", schema=None, executor=mock_calc, risk_level="safe", category="general"))
     agent = Agent(provider, tools, model="test-model", max_steps=5)
 
     result = agent.run("You are an assistant.", "Calculate 2+2 and 3*3")
@@ -104,6 +111,7 @@ def test_agent_run_respects_max_steps():
     )
     provider = DummyProvider(responses=[looping_response])
     tools = ToolRegistry()
+    tools.register(Tool(name="calculate", description="", schema=None, executor=lambda expression: "2", risk_level="safe", category="general"))
     agent = Agent(provider, tools, model="test-model", max_steps=3)
 
     result = agent.run("System", "User")
