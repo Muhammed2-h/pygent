@@ -223,10 +223,21 @@ async function handleRequest(msg) {
                           }
                           const target = targets.find(t => t.tabId === tabId && t.attached);
                           const doCommand = () => {
+                              let cmdDone = false;
+                              const timer = setTimeout(() => {
+                                  if (!cmdDone) {
+                                      cmdDone = true;
+                                      cleanupAndResolve({ __pygent_error: true, message: "CDP command timed out" });
+                                  }
+                              }, 5000);
+                              
                               chrome.debugger.sendCommand({ tabId: tabId }, "Runtime.evaluate", {
                                   expression: args.script,
                                   returnByValue: true
                               }, (result) => {
+                                  if (cmdDone) return;
+                                  cmdDone = true;
+                                  clearTimeout(timer);
                                   try {
                                       if (chrome.runtime.lastError) {
                                           cleanupAndResolve({ __pygent_error: true, message: chrome.runtime.lastError.message });

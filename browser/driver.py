@@ -87,7 +87,7 @@ class BrowserDriver:
             
         new_tabs = [t for t in tabs_after if t.get("id") not in [tb.get("id") for tb in tabs_before]]
         
-        if exec_error and "Execution context was destroyed" in exec_error:
+        if exec_error and ("Execution context was destroyed" in exec_error or "CDP command timed out" in exec_error):
             navigated = True
             exec_error = None
             
