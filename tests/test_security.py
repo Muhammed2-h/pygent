@@ -17,13 +17,30 @@ def test_secret_redaction():
 # 2. Path Traversal
 def test_path_traversal():
     os.environ["AGENT_WORKSPACE"] = "/tmp/workspace"
-    # Try absolute path outside
-    result = file_read("/etc/passwd")
-    assert "Error" in result or "Access denied" in result
+    from tools.filesystem import normalize_and_check_path
+    from pathlib import Path
     
-    # Try relative traversal
+    # Check exact exception type for path traversal attempts
+    with pytest.raises(ValueError, match="Access denied"):
+        normalize_and_check_path("/etc/passwd")
+        
+    with pytest.raises(ValueError, match="Access denied"):
+        normalize_and_check_path("../../etc/passwd")
+        
+    # Also verify that the tools return the exact error message
+    result = file_read("/etc/passwd")
+    expected_err = f"Access denied: Path /etc/passwd is outside allowed root {Path('/tmp/workspace').resolve()}"
+    assert result == expected_err
+    
     result = file_write("../../etc/passwd", "hack")
-    assert "Error" in result or "Access denied" in result
+    expected_err_2 = f"Access denied: Path ../../etc/passwd is outside allowed root {Path('/tmp/workspace').resolve()}"
+    assert result == expected_err_2
+
+    # Check against structured JSON response using execute_code's cwd path traversal
+    result_str = execute_code("bash", "pwd", cwd="../../etc")
+    res_dict = json.loads(result_str)
+    assert res_dict["error"] is not None
+    assert "Access denied" in res_dict["error"]
 
 # 3. Arbitrary file execution
 def test_arbitrary_file_execution():
