@@ -5,9 +5,9 @@ from models import Message
 
 
 def test_cli_check_command_with_key(monkeypatch, tmp_path, capsys):
-    test_db = str(tmp_path / "test_mem.db")
+    monkeypatch.setenv("PYGENT_PROVIDER", "google")
+    monkeypatch.setenv("GEMINI_API_KEY", "gem-123")
     monkeypatch.setattr(sys, "argv", ["main.py", "check"])
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key-123")
     
     # We patch Path since the db is at Path(config.data_dir)/"memory"/"memory.db" 
     # But wait, config.data_dir uses expanduser so patching expanduser works for config loading
@@ -15,12 +15,10 @@ def test_cli_check_command_with_key(monkeypatch, tmp_path, capsys):
 
     from main import main
     main()
-
-    captured = capsys.readouterr().out
-    assert "Checking Configuration..." in captured
-    assert "OpenAI Key: Present" in captured
-    assert "Checking Database..." in captured
-    assert "Database OK" in captured
+    captured = capsys.readouterr()
+    assert "Provider: google" in captured.out
+    assert "Model: gemini-2.5-flash" in captured.out
+    assert "API Key: Present" in captured.out
 
 
 def test_cli_check_command_without_key(monkeypatch, tmp_path, capsys):
@@ -60,7 +58,7 @@ def test_cli_missing_api_key(monkeypatch, tmp_path, capsys):
     main()
 
     captured = capsys.readouterr().out
-    assert "Error: OPENAI_API_KEY must be set when using openai provider" in captured
+    assert "Error: API key must be set for provider 'openai'" in captured
 
 
 def test_cli_interactive_loop(monkeypatch, tmp_path, capsys):

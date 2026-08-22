@@ -12,8 +12,13 @@ from .repl import start_repl
 
 def handle_check(db_path: str, skills_dir: str, config):
     print("Checking Configuration...")
-    if config.openai_api_key:
-        print("OpenAI Key: Present")
+    print(f"Provider: {config.provider}")
+    print(f"Model: {config.default_model}")
+    print(f"Base URL: {config.base_url or 'Default'}")
+    if config.api_key:
+        print("API Key: Present")
+    else:
+        print("API Key: MISSING")
     print("Checking Database...")
     store = MemoryStore(db_path, skills_dir=skills_dir)
     store.close()

@@ -1,5 +1,4 @@
 """Memory package for persistent observation and fact storage."""
-from core.memory_service import MemoryService
 from memory.lifecycle import FinalizationResult, MemoryCheckpoint, finalize_task_memory
 from memory.privacy import PrivacyFilter
 from memory.retrieval import LayeredRetriever
@@ -11,7 +10,6 @@ __all__ = [
     "LayeredRetriever",
     "MemoryCheckpoint",
     "MemoryLayer",
-    "MemoryService",
     "MemoryStore",
     "MemoryType",
     "PrivacyFilter",
