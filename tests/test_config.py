@@ -46,6 +46,11 @@ def _clear_env(monkeypatch):
         "MAX_AGENT_STEPS",
         "PYGENT_DATA_DIR",
         "PYGENT_LOG_LEVEL",
+        "PYGENT_PROVIDER",
+        "NVIDIA_API_KEY",
+        "GEMINI_API_KEY",
+        "PYGENT_API_KEY",
+        "OPENAI_BASE_URL",
     ):
         monkeypatch.delenv(key, raising=False)
 
@@ -104,3 +109,37 @@ def test_removed_provider_fields():
     assert not hasattr(cfg, "anthropic_api_key")
     assert not hasattr(cfg, "gemini_api_key")
     assert not hasattr(cfg, "default_provider")
+
+
+def test_load_config_nvidia_preset(monkeypatch):
+    _clear_env(monkeypatch)
+    monkeypatch.setenv("PYGENT_PROVIDER", "nvidia")
+    monkeypatch.setenv("NVIDIA_API_KEY", "nv-123")
+    cfg = load_config()
+    assert cfg.provider == "nvidia"
+    assert cfg.api_key == "nv-123"
+    assert cfg.base_url == "https://integrate.api.nvidia.com/v1"
+    assert cfg.default_model == "meta/llama-3.3-70b-instruct"
+    assert cfg.openai_api_key == "nv-123"
+
+def test_load_config_gemini_preset(monkeypatch):
+    _clear_env(monkeypatch)
+    monkeypatch.setenv("PYGENT_PROVIDER", "google")
+    monkeypatch.setenv("GEMINI_API_KEY", "gem-123")
+    cfg = load_config()
+    assert cfg.provider == "google"
+    assert cfg.api_key == "gem-123"
+    assert cfg.base_url == "https://generativelanguage.googleapis.com/v1beta/openai/"
+    assert cfg.default_model == "gemini-2.5-flash"
+
+def test_load_config_custom_preset_and_overrides(monkeypatch):
+    _clear_env(monkeypatch)
+    monkeypatch.setenv("PYGENT_PROVIDER", "custom")
+    monkeypatch.setenv("PYGENT_API_KEY", "custom-123")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("DEFAULT_MODEL", "llama3")
+    cfg = load_config()
+    assert cfg.provider == "custom"
+    assert cfg.api_key == "custom-123"
+    assert cfg.base_url == "http://localhost:11434/v1"
+    assert cfg.default_model == "llama3"
