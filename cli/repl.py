@@ -1,5 +1,5 @@
-from agent import Agent
-from memory.service import MemoryService
+from core.agent import Agent
+from core.memory_service import MemoryService
 
 from config import load_config
 from memory.privacy import PrivacyFilter

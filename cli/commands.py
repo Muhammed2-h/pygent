@@ -1,7 +1,7 @@
 import argparse
 from pathlib import Path
 
-from memory.service import MemoryService
+from core.memory_service import MemoryService
 
 from config import load_config, setup_data_directory
 from memory.privacy import PrivacyFilter
