@@ -5,11 +5,9 @@ from .openai_provider import OpenAIProvider
 
 
 def create_provider(config: Config) -> BaseProvider:
-    provider_type = getattr(config, "provider", "openai")
-    
-    if provider_type == "openai":
-        if not config.openai_api_key:
-            raise ValueError("OPENAI_API_KEY must be set when using openai provider")
-        return OpenAIProvider(config.openai_api_key)
-    else:
-        raise ValueError(f"Unsupported provider: {provider_type}")
+    if not config.api_key:
+        raise ValueError(
+            f"API key must be set for provider '{config.provider}'. "
+            f"Please set the appropriate environment variable (e.g. OPENAI_API_KEY, NVIDIA_API_KEY, or GEMINI_API_KEY)."
+        )
+    return OpenAIProvider(api_key=config.api_key, base_url=config.base_url)

@@ -174,20 +174,30 @@ from providers.factory import create_provider
 
 
 def test_create_provider_openai():
-    config = Config(provider="openai", openai_api_key="test-key")
+    config = Config(provider="openai", api_key="test-key")
     provider = create_provider(config)
     assert isinstance(provider, OpenAIProvider)
     assert provider.client.api_key == "test-key"
 
 def test_create_provider_openai_missing_key():
-    config = Config(provider="openai", openai_api_key=None)
-    with pytest.raises(ValueError, match="OPENAI_API_KEY must be set when using openai provider"):
+    config = Config(provider="openai", api_key=None)
+    with pytest.raises(ValueError, match="API key must be set for provider 'openai'."):
         create_provider(config)
 
-def test_create_provider_unsupported():
-    config = Config(provider="unsupported_provider", openai_api_key="test-key")
-    with pytest.raises(ValueError, match="Unsupported provider: unsupported_provider"):
-        create_provider(config)
+
+
+def test_openai_provider_init_with_base_url():
+    from providers.openai_provider import OpenAIProvider
+    provider = OpenAIProvider(api_key="test-key", base_url="http://localhost:1234/v1")
+    assert str(provider.client.base_url) == "http://localhost:1234/v1/"
+
+def test_factory_creates_correctly():
+    from config import Config
+    from providers.factory import create_provider
+    cfg = Config(provider="nvidia", api_key="nv-key", base_url="https://integrate.api.nvidia.com/v1")
+    provider = create_provider(cfg)
+    assert provider.client.api_key == "nv-key"
+    assert str(provider.client.base_url) == "https://integrate.api.nvidia.com/v1/"
 
 import openai
 

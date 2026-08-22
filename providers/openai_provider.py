@@ -9,8 +9,8 @@ from providers.base import BaseProvider
 
 
 class OpenAIProvider(BaseProvider):
-    def __init__(self, api_key: str):
-        self.client = OpenAI(api_key=api_key)
+    def __init__(self, api_key: str, base_url: str | None = None):
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
 
     def complete(
         self,
